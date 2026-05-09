@@ -1,0 +1,32 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environment
+venv/
+ENV/
+env/
+.venv/
+
+# Secrets and Config
+.env
+config.yml
+*.token
+
+# Databases
+db/*.db
+*.db
+*.sqlite3
+
+# Logs
+*.log
+logs/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Project specific
+data/ship/tmp_ship.png
+data/pictures/spotify_card_output.png
