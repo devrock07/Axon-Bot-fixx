@@ -8,7 +8,7 @@ class Invcrole(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.db_path = 'db/invc.db'
-        self.bot.create_background_task(self.create_table(), name="Invcrole.create_table")
+        self.bot.loop.create_task(self.create_table())
 
     async def create_table(self):
         async with aiosqlite.connect(self.db_path) as db:

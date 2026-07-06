@@ -50,9 +50,6 @@ class Context(commands.Context):
     async def send(self,
                    content: Optional[str] = None,
                    **kwargs) -> Optional[discord.Message]:
-        if self.interaction is not None:
-            return await self._send_interaction_response(content, **kwargs)
-
         if not (self.channel.permissions_for(self.me)).send_messages:
             try:
                 await self.author.send(
@@ -65,11 +62,6 @@ class Context(commands.Context):
     async def reply(self,
                     content: Optional[str] = None,
                     **kwargs) -> Optional[discord.Message]:
-        if self.interaction is not None:
-            kwargs.pop("mention_author", None)
-            kwargs.pop("reference", None)
-            return await self._send_interaction_response(content, **kwargs)
-
         if not (self.channel.permissions_for(self.me)).send_messages:
             try:
                 await self.author.send(
@@ -78,30 +70,6 @@ class Context(commands.Context):
                 pass
             return
         return await super().reply(content, **kwargs)
-
-    async def _send_interaction_response(
-            self,
-            content: Optional[str] = None,
-            **kwargs) -> Optional[discord.Message]:
-        interaction = self.interaction
-        kwargs.pop("mention_author", None)
-        kwargs.pop("reference", None)
-        delete_after = kwargs.pop("delete_after", None)
-
-        if interaction.response.is_done():
-            message = await interaction.followup.send(content, wait=True, **kwargs)
-            if delete_after is not None and message is not None:
-                self.bot.create_background_task(
-                    message.delete(delay=delete_after),
-                    name=f"Context.delete_after:{message.id}",
-                )
-            return message
-
-        await interaction.response.send_message(content, delete_after=delete_after, **kwargs)
-        try:
-            return await interaction.original_response()
-        except discord.HTTPException:
-            return None
 
     async def release(self, delay: Optional[int] = None) -> None:
         delay = delay or 0

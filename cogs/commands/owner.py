@@ -159,10 +159,8 @@ class Owner(commands.Cog):
         self.db_path = 'db/np.db'
         self.stop_tour = False
         self.bot_owner_ids = [767979794411028491,]
-        self.client.create_background_task(
-            self.setup_database(), name="owner.setup_database"
-        )
-        self.client.create_background_task(self.load_staff(), name="owner.load_staff")
+        self.client.loop.create_task(self.setup_database())
+        self.client.loop.create_task(self.load_staff())
         
 
     async def setup_database(self):
@@ -177,10 +175,7 @@ class Owner(commands.Cog):
     
 
     async def load_staff(self):
-        try:
-            await self.client.wait_until_ready()
-        except RuntimeError:
-            return
+        await self.client.wait_until_ready()
         async with aiosqlite.connect(self.db_path) as db:
             async with db.execute('SELECT id FROM staff') as cursor:
                 self.staff = {row[0] for row in await cursor.fetchall()}
@@ -238,7 +233,7 @@ class Owner(commands.Cog):
         paginator = Paginator(source=DescriptionEmbedPaginator(
             entries=entries,
             description="",
-            title=f"Guild List of IndiaX [{len(self.client.guilds)}]",
+            title=f"Guild List of Axon X [{len(self.client.guilds)}]",
             color=0x000000,
             per_page=10),
             ctx=ctx)
@@ -262,284 +257,9 @@ class Owner(commands.Cog):
             ctx=ctx)
         await paginator.paginate()
 
-    @commands.command(name="slashsync", aliases=["synccommands", "syncslash"])
-    @commands.is_owner()
-    async def sync_commands(self, ctx: Context, scope: Optional[str] = None):
-        """Sync slash commands.
-
-        Default behavior in a server: sync only this guild for speed.
-        Use `>slashsync global` to sync commands globally.
-        """
-        if scope and scope.lower() in ("global", "all"):
-            await ctx.reply("⏳ Syncing slash commands globally... This may take a while if rate limited.", mention_author=False)
-            try:
-                report = await asyncio.wait_for(
-                    self.client.sync_application_commands(global_sync=True),
-                    timeout=180.0,
-                )
-                embed = discord.Embed(
-                    title="✅ Global Sync Complete",
-                    description=(
-                        "Successfully synced "
-                        f"**{report['global_count']}** slash commands globally!"
-                    ),
-                    color=0x00ff00
-                )
-                embed.set_footer(text="Commands may take up to 1 hour to appear everywhere.")
-                await ctx.reply(embed=embed, mention_author=False)
-            except asyncio.TimeoutError:
-                await ctx.reply(
-                    "⏱️ **Global sync timed out!** Discord is likely rate limiting.\n\n"
-                    "**Solution:** Use `>slashsync` or `>guildsync` in a server to sync this guild only.",
-                    mention_author=False
-                )
-            except discord.errors.Forbidden:
-                await ctx.reply("❌ Failed to sync: Bot lacks permissions to sync commands.", mention_author=False)
-            except discord.errors.HTTPException as e:
-                if e.status == 429:
-                    retry_after = getattr(e, 'retry_after', 300)
-                    await ctx.reply(
-                        f"⏳ **Rate limited!** Please wait **{retry_after//60}m {retry_after%60}s** before trying again.\n\n"
-                        f"**Tip:** Use `>slashsync` or `>guildsync` in a guild to sync that server only.",
-                        mention_author=False
-                    )
-                else:
-                    await ctx.reply(f"❌ HTTP error occurred: {e}", mention_author=False)
-            except Exception as e:
-                await ctx.reply(f"❌ Failed to sync commands: {e}", mention_author=False)
-            return
-
-        if not ctx.guild:
-            await ctx.reply("❌ This command must be used in a server by default, or use `>slashsync global` in DMs.", mention_author=False)
-            return
-
-        await ctx.reply("⏳ Syncing slash commands to this server only...", mention_author=False)
-        try:
-            report = await asyncio.wait_for(
-                self.client.sync_application_commands(guild_ids=[ctx.guild.id]),
-                timeout=90.0,
-            )
-            synced_count = report["guild_results"][0]["command_count"]
-            embed = discord.Embed(
-                title="✅ Server Sync Complete",
-                description=(
-                    "Successfully synced "
-                    f"**{synced_count}** slash commands to **{ctx.guild.name}**!"
-                ),
-                color=0x00ff00
-            )
-            embed.add_field(name="Commands Available", value="Try typing `/` to see all slash commands!", inline=False)
-            embed.set_footer(text="These commands work instantly in this server!")
-            await ctx.reply(embed=embed, mention_author=False)
-        except asyncio.TimeoutError:
-            await ctx.reply("⏱️ Server sync timed out! Try again in a moment.", mention_author=False)
-        except discord.errors.Forbidden:
-            await ctx.reply("❌ Failed to sync: Bot lacks permissions to sync commands.", mention_author=False)
-        except Exception as e:
-            await ctx.reply(f"❌ Failed to sync commands: {e}", mention_author=False)
-
-    @commands.command(name="guildsync", aliases=["gsync", "serversync"])
-    @commands.is_owner()
-    async def sync_guild_commands(self, ctx: Context):
-        """Sync slash commands to THIS SERVER ONLY (RECOMMENDED - no rate limits!)"""
-        if not ctx.guild:
-            await ctx.reply("This command must be used in a server, not DMs.", mention_author=False)
-            return
-
-        await ctx.reply("Syncing slash commands to this server...", mention_author=False)
-        try:
-            report = await asyncio.wait_for(
-                self.client.sync_application_commands(guild_ids=[ctx.guild.id]),
-                timeout=30.0,
-            )
-            synced_count = report["guild_results"][0]["command_count"]
-            embed = discord.Embed(
-                title="Server Sync Complete",
-                description=(
-                    "Successfully synced "
-                    f"**{synced_count}** slash commands to **{ctx.guild.name}**!"
-                ),
-                color=0x00FF00,
-            )
-            embed.add_field(name="Commands Available", value="Try typing `/` to see all slash commands!", inline=False)
-            embed.set_footer(text="These commands work instantly in this server!")
-            await ctx.reply(embed=embed, mention_author=False)
-        except asyncio.TimeoutError:
-            await ctx.reply("Guild sync timed out. Try again in a moment.", mention_author=False)
-        except Exception as e:
-            await ctx.reply(f"Guild sync failed: {e}", mention_author=False)
-
-    @commands.command(name="clearslash", aliases=["clearcommands"])
-    @commands.is_owner()
-    async def clear_commands(self, ctx: Context):
-        """Clear all slash commands from this server"""
-        if not ctx.guild:
-            await ctx.reply("This command must be used in a server, not DMs.", mention_author=False)
-            return
-
-        try:
-            self.client.tree.clear_commands(guild=ctx.guild)
-            await self.client.tree.sync(guild=ctx.guild)
-            await ctx.reply(
-                f"Cleared all slash commands from **{ctx.guild.name}**.",
-                mention_author=False,
-            )
-        except Exception as e:
-            await ctx.reply(f"Failed to clear commands: {e}", mention_author=False)
-
-    @commands.command(name="forcesync", aliases=["forceslash"])
-    @commands.is_owner()
-    async def force_sync_commands(self, ctx: Context):
-        """Force sync slash commands to current guild only (bypasses global rate limits)"""
-        if not ctx.guild:
-            await ctx.reply("This command must be used in a server, not DMs.", mention_author=False)
-            return
-
-        await ctx.reply("Force syncing slash commands to this guild...", mention_author=False)
-        try:
-            self.client.tree.copy_global_to(guild=ctx.guild)
-            report = await asyncio.wait_for(
-                self.client.sync_application_commands(guild_ids=[ctx.guild.id]),
-                timeout=30.0,
-            )
-            synced_count = report["guild_results"][0]["command_count"]
-            await ctx.reply(
-                (
-                    f"Successfully synced **{synced_count}** slash commands "
-                    "to this guild.\n\nTry `/` to see them now."
-                ),
-                mention_author=False,
-            )
-        except asyncio.TimeoutError:
-            await ctx.reply("Force sync timed out. Try again in a few minutes.", mention_author=False)
-        except Exception as e:
-            await ctx.reply(f"Force sync failed: {e}", mention_author=False)
-
-    @commands.command(name="slashcheck", aliases=["checkslash", "slashinfo"])
-    @commands.is_owner()
-    async def slash_check(self, ctx: Context):
-        """Check registered slash commands and sync status"""
-        embed = discord.Embed(title="Slash Command Status", color=0x00FF00)
-
-        try:
-            all_commands = list(self.client.tree.walk_commands())
-            tree_stats = self.client.get_command_tree_stats()
-            sync_overview = self.client.get_command_sync_overview()
-
-            embed.add_field(
-                name="Total Status",
-                value=(
-                    f"Top-level slash commands: **{tree_stats['top_level_chat_input']}**\n"
-                    f"Total app commands (with subcommands): **{tree_stats['total_walked']}**"
-                ),
-                inline=False
-            )
-
-            if sync_overview:
-                mode = sync_overview.get("mode", "unknown")
-                global_count = sync_overview.get("global_count", 0)
-                guild_results = sync_overview.get("guild_results", [])
-                sync_summary = [f"Mode: **{mode}**"]
-                if global_count:
-                    sync_summary.append(f"Global synced: **{global_count}**")
-                if guild_results:
-                    sync_summary.append(f"Guild sync targets: **{len(guild_results)}**")
-                embed.add_field(
-                    name="Last Sync",
-                    value="\n".join(sync_summary),
-                    inline=False
-                )
-
-            if all_commands:
-                cmd_names = [cmd.name for cmd in all_commands[:20]]
-                embed.add_field(
-                    name="Sample Commands",
-                    value=f"`{', '.join(cmd_names)}`{'...' if len(all_commands) > 20 else ''}",
-                    inline=False
-                )
-
-            embed.add_field(
-                name="Next Steps",
-                value=(
-                    "If no commands show above:\n"
-                    "1. Run `>guildsync` to sync to this server\n"
-                    "2. Wait 30 seconds\n"
-                    "3. Type `/` in chat to see commands\n\n"
-                    "If still no commands:\n"
-                    "Run `>clearslash` then `>guildsync` again"
-                ),
-                inline=False
-            )
-
-            await ctx.reply(embed=embed, mention_author=False)
-        except Exception as e:
-            error_embed = discord.Embed(
-                title="Error Checking Slash Status",
-                description=str(e),
-                color=0xFF0000,
-            )
-            await ctx.reply(embed=error_embed, mention_author=False)
-            await ctx.send("Commands may still appear in a few minutes. Try `/test` anyway.")
-
-    @commands.command(name="slashstatus", aliases=["slashstat"])
-    @commands.is_owner()
-    async def slash_status(self, ctx: Context):
-        """Check current slash command status"""
-        try:
-            tree_stats = self.client.get_command_tree_stats()
-            app_commands_list = list(self.client.tree.walk_commands())
-            await ctx.reply(
-                (
-                    "Currently registered slash commands: "
-                    f"{tree_stats['top_level_chat_input']} top-level / "
-                    f"{tree_stats['total_walked']} total"
-                ),
-                mention_author=False,
-            )
-
-            if app_commands_list:
-                cmd_list = [cmd.name for cmd in app_commands_list]
-                await ctx.send(f"Commands: {', '.join(cmd_list)}")
-            else:
-                await ctx.send("No slash commands are currently registered.")
-
-        except Exception as e:
-            await ctx.reply(f"Error checking slash status: {e}", mention_author=False)
-
-    @commands.command(name="debugslash", aliases=["debugcommands"])
-    @commands.is_owner()
-    async def debug_slash(self, ctx: Context):
-        """Debug slash command registration issues"""
-        try:
-            imagine_cog = self.client.get_cog('AiStuffCog')
-            ticket_cog = self.client.get_cog('TicketSystem')
-
-            debug_info = []
-            debug_info.append(f"Imagine Cog: {'Loaded' if imagine_cog else 'Not Loaded'}")
-            debug_info.append(f"Ticket Cog: {'Loaded' if ticket_cog else 'Not Loaded'}")
-
-            tree_stats = self.client.get_command_tree_stats()
-            sync_overview = self.client.get_command_sync_overview()
-            tree_commands = list(self.client.tree.walk_commands())
-            debug_info.append(
-                "Tree Commands: "
-                f"{tree_stats['top_level_chat_input']} top-level / {tree_stats['total_walked']} total"
-            )
-            if sync_overview:
-                debug_info.append(f"Last Sync: {sync_overview}")
-
-            if tree_commands:
-                for cmd in tree_commands:
-                    debug_info.append(f"  - {cmd.name}")
-
-            await ctx.send("\n".join(debug_info))
-            return
-        except Exception as e:
-            await ctx.reply(f"Debug failed: {e}", mention_author=False)
-
     @commands.command(name="getinvite", aliases=["gi", "guildinvite"])
     @commands.is_owner()
-    async def getinvite(self, ctx: Context, guild: discord.Guild = None):
+    async def getinvite(self, ctx: Context, guild= discord.Guild):
         
         if not guild:
             await ctx.send("Invalid server.")
@@ -1200,3 +920,4 @@ class Badges(commands.Cog):
 
             await ctx.send(embed=embed)
             await processing_message.delete()
+

@@ -1,6 +1,7 @@
 from __future__ import annotations
 from core import axon
 from colorama import Fore, Style, init
+import logging
 
 
 #----------Commands---------#
@@ -21,6 +22,7 @@ from .commands.Invc import Invcrole
 from .commands.giveaway import Giveaway
 from .commands.Embed import Embed
 from .commands.steal import Steal
+from .commands.emoji_sync import EmojiSync
 from .commands.ship import Ship
 from .commands.timer import Timer
 from .commands.blacklist import Blacklist
@@ -147,134 +149,42 @@ from .moderation.topcheck import TopCheck
 from .moderation.snipe import Snipe
 
 
-COG_CLASSES = [
-    Help,
-    General,
-    Music,
-    Automod,
-    Welcomer,
-    Fun,
-    Games,
-    Extra,
-    Voice,
-    Owner,
-    Customrole,
-    afk,
-    Embed,
-    Media,
-    Ignore,
-    Invcrole,
-    Giveaway,
-    Steal,
-    Ship,
-    Timer,
-    Blacklist,
-    Block,
-    Nightmode,
-    Badges,
-    Antinuke,
-    Whitelist,
-    Unwhitelist,
-    Extraowner,
-    Slots,
-    Blackjack,
-    Stats,
-    Emergency,
-    Status,
-    NoPrefix,
-    FilterCog,
-    Global,
-    Map,
-    TicketSystem,
-    Logging,
-    QR,
-    VanityRoles,
-    ReactionRoles,
-    Messages,
-    TranslateCog,
-    FastGreet,
-    Jail,
-    _antinuke,
-    _extra,
-    _general,
-    _automod,
-    _moderation,
-    _music,
-    _fun,
-    _games,
-    _ignore,
-    _server,
-    _voice,
-    _welcome,
-    _giveaway,
-    _ticket,
-    Loggingdrop,
-    _vanity,
-    _inviteTracker,
-    AutoBlacklist,
-    Guild,
-    Errors,
-    Autorole2,
-    Autorole,
-    greet,
-    AutoResponder,
-    Mention,
-    AutoRole,
-    React,
-    AutoReaction,
-    AutoReactListener,
-    NotifCommands,
-    AntiMemberUpdate,
-    AntiBan,
-    AntiBotAdd,
-    AntiChannelCreate,
-    AntiChannelDelete,
-    AntiChannelUpdate,
-    AntiEveryone,
-    AntiGuildUpdate,
-    AntiIntegration,
-    AntiKick,
-    AntiPrune,
-    AntiRoleCreate,
-    AntiRoleDelete,
-    AntiRoleUpdate,
-    AntiWebhookUpdate,
-    AntiWebhookCreate,
-    AntiWebhookDelete,
-    AntiSpam,
-    AntiCaps,
-    AntiInvite,
-    AntiLink,
-    AntiMassMention,
-    AntiEmojiSpam,
-    Ban,
-    Unban,
-    Mute,
-    Unmute,
-    Lock,
-    Unlock,
-    Hide,
-    Unhide,
-    Kick,
-    Warn,
-    Role,
-    Message,
-    Moderation,
-    TopCheck,
-    Snipe,
+log = logging.getLogger(__name__)
+
+
+COGS_TO_LOAD = [
+    Help, General, Music, Automod, Welcomer, Fun, Games, Extra, Voice, Owner,
+    Customrole, afk, Embed, Media, Ignore, Invcrole, Giveaway, Steal, EmojiSync,
+    Ship, Timer, Blacklist, Block, Nightmode, Badges, Antinuke, Whitelist,
+    Unwhitelist, Extraowner, Slots, Blackjack, Stats, Emergency, Status,
+    NoPrefix, FilterCog, Global, Map, TicketSystem, Logging, QR, VanityRoles,
+    ReactionRoles, Messages, TranslateCog, FastGreet, Jail,
+    _antinuke, _extra, _general, _automod, _moderation, _music, _fun, _games,
+    _ignore, _server, _voice, _welcome, _giveaway, _ticket, Loggingdrop,
+    _vanity, _inviteTracker,
+    AutoBlacklist, Guild, Errors, Autorole2, Autorole, greet, AutoResponder,
+    Mention, AutoRole, React, AutoReaction, AutoReactListener, NotifCommands,
+    AntiMemberUpdate, AntiBan, AntiBotAdd, AntiChannelCreate, AntiChannelDelete,
+    AntiChannelUpdate, AntiEveryone, AntiGuildUpdate, AntiIntegration, AntiKick,
+    AntiPrune, AntiRoleCreate, AntiRoleDelete, AntiRoleUpdate, AntiWebhookUpdate,
+    AntiWebhookCreate, AntiWebhookDelete, AntiSpam, AntiCaps, AntiInvite,
+    AntiLink, AntiMassMention, AntiEmojiSpam, Ban, Unban, Mute, Unmute, Lock,
+    Unlock, Hide, Unhide, Kick, Warn, Role, Message, Moderation, TopCheck, Snipe,
 ]
 
 
 async def setup(bot: axon):
-    seen_names = set()
+    loaded_names: set[str] = set()
 
-    for cog_cls in COG_CLASSES:
-        cog_name = cog_cls.__name__
-        if cog_name in seen_names:
-            raise RuntimeError(f"Duplicate cog entry detected in loader: {cog_name}")
+    for cog_cls in COGS_TO_LOAD:
+        cog = cog_cls(bot)
+        name = cog.qualified_name
+        if name in loaded_names or bot.get_cog(name):
+            log.warning("Skipping duplicate cog: %s", name)
+            continue
 
-        seen_names.add(cog_name)
-        await bot.add_cog(cog_cls(bot))
-        print(Fore.BLUE + Style.BRIGHT + f"Loaded cog: {cog_name}")
+        await bot.add_cog(cog)
+        loaded_names.add(name)
+        print(Fore.BLUE + Style.BRIGHT + f"Loaded cog: {name}")
 
-    print(Fore.BLUE + Style.BRIGHT + "All IndiaCogs loaded successfully.")
+    print(Fore.BLUE + Style.BRIGHT + "All Axon Cogs loaded successfully.")

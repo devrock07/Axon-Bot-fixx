@@ -26,7 +26,7 @@ class Database:
         return self.db
 
     async def ensure_connection(self):
-        if self.db is None or not self.db.is_open:
+        if self.db is None:
             await self.connect()
         return self.db
 
@@ -41,7 +41,7 @@ class Database:
                     await asyncio.sleep(sleep_time)
                 else:
                     raise
-        raise Exception("Max retrys.")
+        raise Exception("Max retries.")
 
     async def close(self):
         async with self._lock:

@@ -1,3 +1,7 @@
+from utils import emojis
+from utils.components_v2 import success_panel, error_panel, info_panel
+
+import asyncio
 import discord
 from discord.ext import commands
 import aiosqlite
@@ -10,10 +14,7 @@ DB_PATH = "db/autoresponder.db"
 class AutoResponder(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.bot.create_background_task(
-            self.initialize_db(),
-            name="AutoResponder.initialize_db",
-        )
+        asyncio.create_task(self.initialize_db())
 
     async def initialize_db(self):
         if not os.path.exists(os.path.dirname(DB_PATH)):
@@ -49,23 +50,23 @@ class AutoResponder(commands.Cog):
             async with db.execute("SELECT COUNT(*) FROM autoresponses WHERE guild_id = ?", (ctx.guild.id,)) as cursor:
                 count = (await cursor.fetchone())[0]
                 if count >= 20:
-                    return await ctx.reply(embed=discord.Embed(title="<:CrossIcon:1327829124894429235> Error!",
-                        description=f"You can't add more than 20 autoresponses in {ctx.guild.name}",
-                        color=0x000000
+                    return await ctx.reply(view=error_panel(
+                        f"You can't add more than 20 autoresponses in {ctx.guild.name}",
+                        title=f"{emojis.CROSSICON} Error!"
                     ))
 
             async with db.execute("SELECT 1 FROM autoresponses WHERE guild_id = ? AND LOWER(name) = ?", (ctx.guild.id, name_lower)) as cursor:
                 if await cursor.fetchone():
-                    return await ctx.reply(embed=discord.Embed(title="<:CrossIcon:1327829124894429235> Error!",
-                        description=f"The autoresponse with the name `{name}` already exists in {ctx.guild.name}",
-                        color=0x000000
+                    return await ctx.reply(view=error_panel(
+                        f"The autoresponse with the name `{name}` already exists in {ctx.guild.name}",
+                        title=f"{emojis.CROSSICON} Error!"
                     ))
 
             await db.execute("INSERT INTO autoresponses (guild_id, name, message) VALUES (?, ?, ?)", (ctx.guild.id, name_lower, message))
             await db.commit()
-            await ctx.reply(embed=discord.Embed(title="<:tick:1327829594954530896> Success",
-                description=f"Created autoresponder `{name}` in {ctx.guild.name}",
-                color=0x000000
+            await ctx.reply(view=success_panel(
+                f"Created autoresponder `{name}` in {ctx.guild.name}",
+                title=f"{emojis.TICK} Success"
             ))
 
     @_ar.command(name="delete", help="Delete an existing autoresponder.")
@@ -78,16 +79,16 @@ class AutoResponder(commands.Cog):
         async with aiosqlite.connect(DB_PATH) as db:
             async with db.execute("SELECT 1 FROM autoresponses WHERE guild_id = ? AND LOWER(name) = ?", (ctx.guild.id, name_lower)) as cursor:
                 if not await cursor.fetchone():
-                    return await ctx.reply(embed=discord.Embed(title="<:CrossIcon:1327829124894429235> Error!",
-                        description=f"No autoresponder found with the name `{name}` in {ctx.guild.name}",
-                        color=0x000000
+                    return await ctx.reply(view=error_panel(
+                        f"No autoresponder found with the name `{name}` in {ctx.guild.name}",
+                        title=f"{emojis.CROSSICON} Error!"
                     ))
 
             await db.execute("DELETE FROM autoresponses WHERE guild_id = ? AND LOWER(name) = ?", (ctx.guild.id, name_lower))
             await db.commit()
-            await ctx.reply(embed=discord.Embed(title="<:tick:1327829594954530896> Success",
-                description=f"Deleted autoresponder `{name}` in {ctx.guild.name}",
-                color=0x000000
+            await ctx.reply(view=success_panel(
+                f"Deleted autoresponder `{name}` in {ctx.guild.name}",
+                title=f"{emojis.TICK} Success"
             ))
 
     @_ar.command(name="edit", help="Edit an existing autoresponder.")
@@ -100,16 +101,16 @@ class AutoResponder(commands.Cog):
         async with aiosqlite.connect(DB_PATH) as db:
             async with db.execute("SELECT 1 FROM autoresponses WHERE guild_id = ? AND LOWER(name) = ?", (ctx.guild.id, name_lower)) as cursor:
                 if not await cursor.fetchone():
-                    return await ctx.reply(embed=discord.Embed(title="<:CrossIcon:1327829124894429235> Error!",
-                        description=f"No autoresponder found with the name `{name}` in {ctx.guild.name}",
-                        color=0x000000
+                    return await ctx.reply(view=error_panel(
+                        f"No autoresponder found with the name `{name}` in {ctx.guild.name}",
+                        title=f"{emojis.CROSSICON} Error!"
                     ))
 
             await db.execute("UPDATE autoresponses SET message = ? WHERE guild_id = ? AND LOWER(name) = ?", (message, ctx.guild.id, name_lower))
             await db.commit()
-            await ctx.reply(embed=discord.Embed(title="<:tick:1327829594954530896>  Success",
-                description=f"Edited autoresponder `{name}` in {ctx.guild.name}",
-                color=0x000000
+            await ctx.reply(view=success_panel(
+                f"Edited autoresponder `{name}` in {ctx.guild.name}",
+                title=f"{emojis.TICK} Success"
             ))
 
     @_ar.command(name="config", help="List all autoresponders in the server.")
@@ -123,15 +124,16 @@ class AutoResponder(commands.Cog):
                 autoresponses = await cursor.fetchall()
 
         if not autoresponses:
-            return await ctx.reply(embed=discord.Embed(
-                description=f"There are no autoresponders in {ctx.guild.name}",
-                color=0x000000
+            return await ctx.reply(view=info_panel(
+                f"There are no autoresponders in {ctx.guild.name}"
             ))
 
-        embed = discord.Embed(color=0x000000, title=f"Autoresponders in {ctx.guild.name}")
-        for i, (name,) in enumerate(autoresponses, start=1):
-            embed.add_field(name=f"Autoresponder [{i}]", value=name, inline=False)
-        await ctx.send(embed=embed)
+        fields = [(f"Autoresponder [{i}]", name) for i, (name,) in enumerate(autoresponses, start=1)]
+        await ctx.send(view=info_panel(
+            "",
+            title=f"Autoresponders in {ctx.guild.name}",
+            fields=fields
+        ))
 
     @commands.Cog.listener()
     async def on_message(self, message):

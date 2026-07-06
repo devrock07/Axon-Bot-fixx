@@ -16,18 +16,18 @@ from utils.config import serverLink
 from utils.Tools import *
 
 color = 0x185fe5
-
+client = axon()
 
 class HelpCommand(commands.HelpCommand):
 
   async def send_ignore_message(self, ctx, ignore_type: str):
 
     if ignore_type == "channel":
-      await ctx.reply("This channel is ignored.", mention_author=False)
+      await ctx.reply(f"This channel is ignored.", mention_author=False)
     elif ignore_type == "command":
       await ctx.reply(f"{ctx.author.mention} This Command, Channel, or You have been ignored here.", delete_after=6)
     elif ignore_type == "user":
-      await ctx.reply("You are ignored.", mention_author=False)
+      await ctx.reply(f"You are ignored.", mention_author=False)
 
   async def on_help_command_error(self, ctx, error):
     errors = [
@@ -64,12 +64,9 @@ class HelpCommand(commands.HelpCommand):
         color=discord.Color.red()
     )
     
-    avatar_url = self.context.bot.user.avatar.url if self.context.bot.user.avatar else None
-    embed.set_author(name="Command Not Found", icon_url=avatar_url)
-    embed.set_footer(
-        text=f"Requested By {ctx.author}",
-        icon_url=ctx.author.avatar.url if ctx.author.avatar else ctx.author.default_avatar.url,
-    )
+    embed.set_author(name="Command Not Found", icon_url=self.context.bot.user.avatar.url)
+    embed.set_footer(text=f"Requested By {ctx.author}",
+                       icon_url=ctx.author.avatar.url if ctx.author.avatar else ctx.author.default_avatar.url)
     if matches:
         match_list = "\n".join([f"{index}. `{match}`" for index, match in enumerate(matches, start=1)])
         embed.add_field(name="Did you mean:", value=match_list, inline=True)
@@ -90,15 +87,14 @@ class HelpCommand(commands.HelpCommand):
 
     data = await getConfig(self.context.guild.id)
     prefix = data["prefix"]
+    filtered = await self.filter_commands(self.context.bot.walk_commands(), sort=True)
 
     embed = discord.Embed(
         description=(
           f"**<a:BlueDot:1364125472539021352> Server Prefix:** `{prefix}`\n"
           f"**<a:BlueDot:1364125472539021352> Total Commands:** `{len(set(self.context.bot.walk_commands()))}`\n"
-          f"**<a:BlueDot:1364125472539021352> Type `{prefix}antinuke enable` To get started**\n"
-        ),
-        color=0x185fe5,
-    )
+          f"**<a:BlueDot:1364125472539021352> Type `{prefix}antinuke enable` To get started**\n"),
+        color=0x185fe5)
 
     embed.add_field(
         name="<:Module:1330406766151860297> __**Module**__",
@@ -108,7 +104,7 @@ class HelpCommand(commands.HelpCommand):
               " <:Autoreact:1330393356198477824> Autoreact & responder\n"
               " <:autorole:1330393358904066148> Autorole & Invc\n"
               " <:Extra:1330393380810657843> Fun & AI Image Gen\n"
-              " <:ignore:1330398849101205524> Ignore Channels\n"
+              " <:ignore:1330398849101205524> Ignore Channels\n" 
               "<:logging:1392124867872165969> Advance Logging\n"
               "<:InviteTracker:1392125185817051239> Invite Tracker\n"
     )
@@ -121,9 +117,9 @@ class HelpCommand(commands.HelpCommand):
               " <:music:1330393374271737896> Music\n"
               " <:Moderation:1330393377203556412> Moderation\n"
               " <:customrole:1330393383830683710> Customrole\n"
-              " <:giveaway:1330395924299644980> Giveaway\n"
-              " <:ticket:1355527347335467191> Ticket\n"
-              " <:VanityRoles:1392125176644108359> Vanityroles\n"
+              " <:giveaway:1330395924299644980> Giveaway\n" 
+              '<:ticket:1355527347335467191> Ticket\n'
+              "<:VanityRoles:1392125176644108359> Vanityroles\n"
     )
 
     embed.set_footer(
@@ -145,51 +141,40 @@ class HelpCommand(commands.HelpCommand):
       await self.send_ignore_message(ctx, "command")
       return
 
-    sonu = f">>> {command.help}" if command.help else ">>> No Help Provided..."
+    sonu = f">>> {command.help}" if command.help else '>>> No Help Provided...'
     embed = discord.Embed(
-        description=(
-            "```xml\n"
-            "<[] = optional | <> = required\n"
-            "Don't type these while using commands>```\n"
-            f"{sonu}"
-        ),
-        color=color,
-    )
-    alias = " | ".join(command.aliases)
+        description=f"""```xml
+<[] = optional | ‹› = required\nDon't type these while using Commands>```\n{sonu}""",
+        color=color)
+    alias = ' | '.join(command.aliases)
 
-    embed.add_field(
-        name="**Aliases**",
-        value=f"{alias}" if command.aliases else "No Aliases",
-        inline=False,
-    )
-    embed.add_field(
-        name="**Usage**",
-        value=f"`{self.context.prefix}{command.signature}`\n"
-    )
-    embed.set_author(
-        name=f"{command.qualified_name.title()} Command",
-        icon_url=self.context.bot.user.display_avatar.url,
-    )
+    embed.add_field(name="**Aliases**",
+                      value=f"{alias}" if command.aliases else "No Aliases",
+                      inline=False)
+    embed.add_field(name="**Usage**",
+                      value=f"`{self.context.prefix}{command.signature}`\n")
+    embed.set_author(name=f"{command.qualified_name.title()} Command",
+                       icon_url=self.context.bot.user.display_avatar.url)
     await self.context.reply(embed=embed, mention_author=False)
 
   def get_command_signature(self, command: commands.Command) -> str:
     parent = command.full_parent_name
     if len(command.aliases) > 0:
-      aliases = " | ".join(command.aliases)
-      fmt = f"[{command.name} | {aliases}]"
+      aliases = ' | '.join(command.aliases)
+      fmt = f'[{command.name} | {aliases}]'
       if parent:
-        fmt = f"{parent}"
-      alias = f"[{command.name} | {aliases}]"
+        fmt = f'{parent}'
+      alias = f'[{command.name} | {aliases}]'
     else:
-      alias = command.name if not parent else f"{parent} {command.name}"
-    return f"{alias} {command.signature}"
+      alias = command.name if not parent else f'{parent} {command.name}'
+    return f'{alias} {command.signature}'
 
   def common_command_formatting(self, embed_like, command):
     embed_like.title = self.get_command_signature(command)
     if command.description:
-      embed_like.description = f"{command.description}\n\n{command.help}"
+      embed_like.description = f'{command.description}\n\n{command.help}'
     else:
-      embed_like.description = command.help or "No help found..."
+      embed_like.description = command.help or 'No help found...'
 
   async def send_group_help(self, group):
     ctx = self.context
@@ -205,7 +190,7 @@ class HelpCommand(commands.HelpCommand):
 
     entries = [
         (
-            f"-> `{self.context.prefix}{cmd.qualified_name}`\n",
+            f"➜ `{self.context.prefix}{cmd.qualified_name}`\n",
             f"{cmd.short_doc if cmd.short_doc else ''}\n\u200b"
         )
         for cmd in group.commands
@@ -213,16 +198,13 @@ class HelpCommand(commands.HelpCommand):
 
     count = len(group.commands)
 
-    paginator = Paginator(
-      source=FieldPagePaginator(
-        entries=entries,
-        title=f"{group.qualified_name.title()} [{count}]",
-        description="< > Duty | [ ] Optional\n",
-        color=color,
-        per_page=4,
-      ),
-      ctx=self.context,
-    )
+    paginator = Paginator(source=FieldPagePaginator(
+      entries=entries,
+      title=f"{group.qualified_name.title()} [{count}]",
+      description="< > Duty | [ ] Optional\n",
+      color=color,
+      per_page=4),
+                          ctx=self.context)
     await paginator.paginate()
 
   async def send_cog_help(self, cog):
@@ -238,20 +220,17 @@ class HelpCommand(commands.HelpCommand):
       return
 
     entries = [(
-      f"-> `{self.context.prefix}{cmd.qualified_name}`",
+      f"➜ `{self.context.prefix}{cmd.qualified_name}`",
       f"{cmd.short_doc if cmd.short_doc else ''}"
       f"\n\u200b",
     ) for cmd in cog.get_commands()]
-    paginator = Paginator(
-      source=FieldPagePaginator(
-        entries=entries,
-        title=f"{cog.qualified_name.title()} [{len(cog.get_commands())}]",
-        description="< > Duty | [ ] Optional\n\n",
-        color=color,
-        per_page=4,
-      ),
-      ctx=self.context,
-    )
+    paginator = Paginator(source=FieldPagePaginator(
+      entries=entries,
+      title=f"{cog.qualified_name.title()} ({len(cog.get_commands())})",
+      description="< > Duty | [ ] Optional\n\n",
+      color=color,
+      per_page=4),
+                          ctx=self.context)
     await paginator.paginate()
 
 
@@ -259,15 +238,14 @@ class Help(Cog, name="help"):
 
   def __init__(self, client: axon):
     self._original_help_command = client.help_command
-    self.client = client
     attributes = {
-      "name": "help",
-      "aliases": ["h"],
-      "cooldown": commands.CooldownMapping.from_cooldown(1, 5, commands.BucketType.user),
-      "help": "Shows help about bot, a command, or a category"
+      'name': "help",
+      'aliases': ['h'],
+      'cooldown': commands.CooldownMapping.from_cooldown(1, 5, commands.BucketType.user),
+      'help': 'Shows help about bot, a command, or a category'
     }
     client.help_command = HelpCommand(command_attrs=attributes)
     client.help_command.cog = self
 
   async def cog_unload(self):
-    self.client.help_command = self._original_help_command
+    self.help_command = self._original_help_command

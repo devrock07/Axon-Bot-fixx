@@ -7,7 +7,7 @@ from utils.Tools import *
 class Extraowner(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.bot.create_background_task(self.initialize_db(), name="Extraowner.initialize_db")
+        self.bot.loop.create_task(self.initialize_db())
 
     async def initialize_db(self):
         self.db = await aiosqlite.connect('db/anti.db')
@@ -165,3 +165,4 @@ class ConfirmView(View):
     async def cancel(self, interaction: discord.Interaction, button: Button):
         self.value = False
         self.stop()
+

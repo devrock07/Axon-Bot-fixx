@@ -1,3 +1,7 @@
+from utils import emojis
+from utils.components_v2 import success_panel, error_panel, info_panel
+
+import asyncio
 import discord
 from discord.ext import commands
 import aiosqlite
@@ -7,12 +11,8 @@ from utils.Tools import *
 class Unwhitelist(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.bot.create_background_task(
-            self.initialize_db(),
-            name="Unwhitelist.initialize_db",
-        )
+        asyncio.create_task(self.initialize_db())
 
-    #@commands.Cog.listener()
     async def initialize_db(self):
         self.db = await aiosqlite.connect('db/anti.db')
 
@@ -25,11 +25,7 @@ class Unwhitelist(commands.Cog):
     @commands.guild_only()
     async def unwhitelist(self, ctx, member: discord.Member = None):
         if ctx.guild.member_count < 2:
-            embed = discord.Embed(
-                color=0x08ff00,
-                description="<:CrossIcon:1327829124894429235> | Your Server Doesn't Meet My 30 Member Criteria"
-            )
-            return await ctx.send(embed=embed)
+            return await ctx.send(view=error_panel(f"{emojis.CROSSICON} | Your Server Doesn't Meet My 30 Member Criteria"))
 
         async with self.db.execute(
             "SELECT owner_id FROM extraowners WHERE guild_id = ? AND owner_id = ?",
@@ -45,32 +41,25 @@ class Unwhitelist(commands.Cog):
 
         is_owner = ctx.author.id == ctx.guild.owner_id
         if not is_owner and not check:
-            embed = discord.Embed(title="<:CrossIcon:1327829124894429235> Access Denied",
-                color=0x08ff00,
-                description="Only Server Owner or Extra Owner can Run this Command!"
-            )
-            return await ctx.send(embed=embed)
+            return await ctx.send(view=error_panel(
+                "Only Server Owner or Extra Owner can Run this Command!",
+                title=f"{emojis.CROSSICON} Access Denied"
+            ))
 
         if not antinuke or not antinuke[0]:
-            embed = discord.Embed(
-                color=0x08ff00,
-                description=(
-                    f"**{ctx.guild.name} Security Settings <:mod:1327845044182585407>\n"
-                    "Ohh NO! looks like your server doesn't enabled security\n\n"
-                    "Current Status : <a:disabled1:1329022921427128321>\n\n"
-                    "To enable use `antinuke enable` **"
-                )
-            )
-            return await ctx.send(embed=embed)
+            return await ctx.send(view=info_panel(
+                f"**{ctx.guild.name} Security Settings {emojis.MOD}\n"
+                "Ohh NO! looks like your server doesn't enabled security\n\n"
+                f"Current Status : {emojis.DISABLED1}\n\n"
+                "To enable use `antinuke enable` **"
+            ))
 
         if not member:
-            embed = discord.Embed(
-                color=0x08ff00,
+            return await ctx.send(view=info_panel(
+                f"**Removes user from whitelisted users which means that the antinuke module will now take actions on them if they trigger it.**",
                 title="__**Unwhitelist Commands**__",
-                description="**Removes user from whitelisted users which means that the antinuke module will now take actions on them if they trigger it.**"
-            )
-            embed.add_field(name="__**Usage**__", value="<:red_dot:1222796144996777995> `unwhitelist @user/id`\n<:red_dot:1222796144996777995> `unwl @user`")
-            return await ctx.send(embed=embed)
+                fields=[("__**Usage**__", f"{emojis.RED_DOT} `unwhitelist @user/id`\n{emojis.RED_DOT} `unwl @user`")]
+            ))
 
         async with self.db.execute(
             "SELECT * FROM whitelisted_users WHERE guild_id = ? AND user_id = ?",
@@ -79,11 +68,10 @@ class Unwhitelist(commands.Cog):
             data = await cursor.fetchone()
 
         if not data:
-            embed = discord.Embed(title="<:CrossIcon:1327829124894429235> Error",
-                color=0x000000,
-                description=f"<@{member.id}> is not a whitelisted member."
-            )
-            return await ctx.send(embed=embed)
+            return await ctx.send(view=error_panel(
+                f"<@{member.id}> is not a whitelisted member.",
+                title=f"{emojis.CROSSICON} Error"
+            ))
 
         await self.db.execute(
             "DELETE FROM whitelisted_users WHERE guild_id = ? AND user_id = ?",
@@ -91,11 +79,10 @@ class Unwhitelist(commands.Cog):
         )
         await self.db.commit()
 
-        embed = discord.Embed(title="<:tick:1327829594954530896> Success",
-            color=0x000000,
-            description=f"User <@!{member.id}> has been removed from the whitelist."
-        )
-        await ctx.send(embed=embed)
+        await ctx.send(view=success_panel(
+            f"User <@!{member.id}> has been removed from the whitelist.",
+            title=f"{emojis.TICK} Success"
+        ))
 
 
 """

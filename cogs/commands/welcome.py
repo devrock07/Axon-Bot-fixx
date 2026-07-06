@@ -47,10 +47,7 @@ class VariableButton(Button):
 class Welcomer(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.bot.create_background_task(
-            self._create_table(),
-            name="Welcomer.create_table",
-        )
+        self.bot.loop.create_task(self._create_table())
 
     async def _create_table(self):
         async with aiosqlite.connect("db/welcome.db") as db:
@@ -934,4 +931,5 @@ class Welcomer(commands.Cog):
             view.add_item(cancel_button)
             
             await ctx.send(embed=embed, view=view)
+
 

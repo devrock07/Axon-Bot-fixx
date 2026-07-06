@@ -6,7 +6,7 @@ from utils import Paginator, DescriptionEmbedPaginator
 class Block(commands.Cog):
   def __init__(self, bot):
     self.bot = bot
-    self.bot.create_background_task(self.set_db(), name="Block.set_db")
+    self.bot.loop.create_task(self.set_db())
 
   #@commands.Cog.listener()
   async def set_db(self):

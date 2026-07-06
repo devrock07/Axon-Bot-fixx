@@ -1,295 +1,240 @@
-import asyncio
-import os
-
 import discord
-import requests
-from discord import ButtonStyle, SelectOption, ui
 from discord.ext import commands
-
-from utils.Tools import blacklist_check, ignore_check
-
+from discord import ui, ButtonStyle, SelectOption
+import requests
+import asyncio
+from utils.Tools import *
 
 class MapView(ui.View):
-    def __init__(self, bot, location: str, ctx, latitude: float, longitude: float):
-        super().__init__(timeout=300)
+    def __init__(self, bot, location, ctx):
+        super().__init__(timeout=None)
         self.bot = bot
         self.location = location
         self.ctx = ctx
         self.zoom_level = 14
-        self.map_style = "map"
-        self.map_size = "1200,900"
-        self.latitude = latitude
-        self.longitude = longitude
-        self.coordinates = (latitude, longitude)
+        self.map_style = 'map'
+        self.map_size = '1200,900'
+        self.coordinates = self.get_coordinates(location)
+        self.latitude, self.longitude = None, None
+        if self.coordinates != (None, None):
+            self.latitude, self.longitude = float(self.coordinates[0]), float(self.coordinates[1])
         self.update_map()
 
         self.add_item(MapStyleSelect(self))
         self.add_item(MapSizeSelect(self))
 
-    @staticmethod
-    async def fetch_coordinates(location: str):
-        def _fetch():
-            headers = {"User-Agent": "India Bot"}
-            response = requests.get(
-                "https://nominatim.openstreetmap.org/search",
-                params={"q": location, "format": "json"},
-                headers=headers,
-                timeout=15,
-            )
-            response.raise_for_status()
-            data = response.json()
-            if not data:
-                return None
-            return float(data[0]["lat"]), float(data[0]["lon"])
-
+    def get_coordinates(self, location):
+        
         try:
-            return await asyncio.to_thread(_fetch)
-        except (requests.RequestException, ValueError, KeyError, IndexError):
-            return None
+            headers = {'User-Agent': 'Quantum Bot (https://olyumpus.vercel.app)'}
+            response = requests.get(f'https://nominatim.openstreetmap.org/search?q={location}&format=json', headers=headers)
+            response.raise_for_status()
+            data = response.json()[0]
+            return data['lat'], data['lon']
+        except (requests.RequestException, IndexError) as e:
+            print(f"Failed to get coordinates: {e}")
+            return None, None
 
     def update_map(self):
-        mapquest_key = os.getenv(
-            "MAPQUEST_API_KEY",
-            "E2SaL3qiTpXQ43nxZFBp0wzEnBI6pqbG",
-        )
-        self.map_url = (
-            "https://www.mapquestapi.com/staticmap/v5/map"
-            f"?key={mapquest_key}"
-            f"&center={self.latitude},{self.longitude}"
-            f"&zoom={self.zoom_level}&size={self.map_size}&type={self.map_style}"
-        )
-
-    def build_embed(self) -> discord.Embed:
-        embed = discord.Embed(title=f"Map of {self.location}", color=0x000000)
-        embed.add_field(
-            name="Open in Webpage",
-            value=(
-                "-> "
-                f"**[Click Here](https://www.openstreetmap.org/?mlat={self.latitude}"
-                f"&mlon={self.longitude}&zoom={self.zoom_level})**"
-            ),
-            inline=False,
-        )
-        embed.add_field(name="Current Zoom Level", value=f"-> {self.zoom_level}")
-        embed.add_field(name="Map Style", value=f"-> {self.map_style}")
-        embed.add_field(name="Map Size", value=f"-> {self.map_size}")
-        embed.add_field(
-            name="Current Coordinates",
-            value=f"-> {self.latitude}, {self.longitude}",
-            inline=False,
-        )
-        embed.set_image(url=self.map_url)
-        embed.set_footer(
-            text=f"Requested By {self.ctx.author}",
-            icon_url=(
-                self.ctx.author.avatar.url
-                if self.ctx.author.avatar
-                else self.ctx.author.default_avatar.url
-            ),
-        )
-        return embed
-
-    async def refresh_message(
-        self, interaction: discord.Interaction, *, notice: str | None = None
-    ) -> None:
-        embed = self.build_embed()
-
-        if interaction.response.is_done():
-            await interaction.message.edit(embed=embed, view=self)
-            if notice:
-                await interaction.followup.send(notice, ephemeral=True)
+        if self.latitude is None or self.longitude is None:
             return
+        self.map_url = f'https://www.mapquestapi.com/staticmap/v5/map?key=E2SaL3qiTpXQ43nxZFBp0wzEnBI6pqbG&center={self.latitude},{self.longitude}&zoom={self.zoom_level}&size={self.map_size}&type={self.map_style}'
 
-        await interaction.response.edit_message(embed=embed, view=self)
-        if notice:
-            await interaction.followup.send(notice, ephemeral=True)
+    async def update_embed(self, interaction: discord.Interaction):
+        if self.latitude is None or self.longitude is None:
+            await interaction.response.send_message("Failed to retrieve map data. Please try again.", ephemeral=True)
+            return
+        embed = discord.Embed(title=f" Map of {self.location}", color=0x000000)
+        embed.add_field(name="🌐  Open in Webpage", value=f"➜  **[Click Here](https://www.openstreetmap.org/?mlat={self.latitude}&mlon={self.longitude}&zoom={self.zoom_level})**")
+        embed.add_field(name="🔍  Current Zoom Level", value=f"➜  {str(self.zoom_level)}")
+        embed.add_field(name="🗺️  Map Style", value=f"➜  {self.map_style}")
+        embed.add_field(name="📏  Map Size", value=f"➜  {self.map_size}")
+        embed.add_field(name="📍 Current Coordinates", value=f"➜  {self.latitude}, {self.longitude}")
+        embed.set_image(url=self.map_url)
+        embed.set_footer(text="Made by Olympus Development™")
+        try:
+            await interaction.message.edit(embed=embed, view=self)
+        except Exception as e:
+            await interaction.response.send_message(f"Error updating message: {e}", ephemeral=True)
+
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user != self.ctx.author:
             await interaction.response.send_message(
-                embed=discord.Embed(
-                    description="Sorry only the requested author can control this",
-                    color=0x000000,
-                ),
-                ephemeral=True,
+                embed=discord.Embed(description="Sorry only the requested author can control this", color=0x000000),
+                ephemeral=True
             )
             return False
         return True
 
-    @discord.ui.button(label="", emoji="⬅️", style=ButtonStyle.secondary)
+    @discord.ui.button(label="", emoji="arrow_left", style=ButtonStyle.secondary)
     async def move_left(self, interaction: discord.Interaction, button: ui.Button):
-        self.longitude -= 0.01
-        self.update_map()
-        await self.refresh_message(interaction)
-
-    @discord.ui.button(label="", emoji="⬆️", style=ButtonStyle.secondary)
+        if self.longitude is not None:
+            self.longitude -= 0.01
+            self.update_map()
+            await self.update_embed(interaction)
+            await interaction.response.send_message(embed=discord.Embed(description="Moved left."), ephemeral=True)
+    
+    @discord.ui.button(label="",  emoji=":arrow_up:", style=ButtonStyle.secondary)
     async def move_up(self, interaction: discord.Interaction, button: ui.Button):
-        self.latitude += 0.01
-        self.update_map()
-        await self.refresh_message(interaction)
+        if self.latitude is not None:
+            self.latitude += 0.01
+            self.update_map()
+            await self.update_embed(interaction)
+            await interaction.response.send_message(embed=discord.Embed(description="Moved up."), ephemeral=True)
 
-    @discord.ui.button(
-        label="", emoji="<:delete:1327842168693461022>", style=ButtonStyle.danger
-    )
+    @discord.ui.button(label="", emoji="<:delete:1327842168693461022>", style=ButtonStyle.danger)
     async def delete_embed(self, interaction: discord.Interaction, button: ui.Button):
-        if not interaction.response.is_done():
-            await interaction.response.defer()
-        await interaction.message.delete()
+        try:
+            await interaction.message.delete()
+        except Exception as e:
+            await interaction.response.send_message(f"Error deleting message: {e}", ephemeral=True)
 
-    @discord.ui.button(label="", emoji="⬇️", style=ButtonStyle.secondary)
+
+    @discord.ui.button(label="", emoji=":arrow_down:", style=ButtonStyle.secondary)
     async def move_down(self, interaction: discord.Interaction, button: ui.Button):
-        self.latitude -= 0.01
-        self.update_map()
-        await self.refresh_message(interaction)
+        if self.latitude is not None:
+            self.latitude -= 0.01
+            self.update_map()
+            await self.update_embed(interaction)
+            await interaction.response.send_message(embed=discord.Embed(description="Moved down."), ephemeral=True)
 
-    @discord.ui.button(label="", emoji="➡️", style=ButtonStyle.secondary)
+    @discord.ui.button(label="", emoji=":arrow_right:", style=ButtonStyle.secondary)
     async def move_right(self, interaction: discord.Interaction, button: ui.Button):
-        self.longitude += 0.01
-        self.update_map()
-        await self.refresh_message(interaction)
-
+        if self.longitude is not None:
+            self.longitude += 0.01
+            self.update_map()
+            await self.update_embed(interaction)
+            await interaction.response.send_message(embed=discord.Embed(description="Moved right."), ephemeral=True)
+    
     @discord.ui.button(label="Zoom In", style=ButtonStyle.primary)
     async def zoom_in(self, interaction: discord.Interaction, button: ui.Button):
+        print("Zooming in")
         self.zoom_level = min(self.zoom_level + 1, 18)
         self.update_map()
-        await self.refresh_message(interaction)
+        await self.update_embed(interaction)
+        await interaction.response.send_message(embed=discord.Embed(description="Zoomed in."), ephemeral=True)
 
     @discord.ui.button(label="Zoom Out", style=ButtonStyle.primary)
     async def zoom_out(self, interaction: discord.Interaction, button: ui.Button):
+        print("Zooming out")
         self.zoom_level = max(self.zoom_level - 1, 0)
         self.update_map()
-        await self.refresh_message(interaction)
+        await self.update_embed(interaction)
+        await interaction.response.send_message(embed=discord.Embed(description="Zoomed Out."), ephemeral=True)
+
 
     @discord.ui.button(label="Enter Coordinates", style=ButtonStyle.primary)
-    async def enter_coordinates(
-        self, interaction: discord.Interaction, button: ui.Button
-    ):
-        await interaction.response.send_message(
-            "Please enter the coordinates (latitude, longitude):", ephemeral=True
-        )
+    async def enter_coordinates(self, interaction: discord.Interaction, button: ui.Button):
+        await interaction.response.send_message("Please enter the coordinates (latitude, longitude):", ephemeral=True)
 
         def check(message):
-            return (
-                message.author == interaction.user
-                and message.channel == interaction.channel
-            )
+            return message.author == interaction.user and message.channel == interaction.channel
 
         try:
-            coords_msg = await self.bot.wait_for("message", check=check, timeout=60)
-            coords = coords_msg.content.split(",")
-            if len(coords) != 2:
-                await interaction.followup.send(
-                    "Invalid coordinates format. Please enter `latitude, longitude`.",
-                    ephemeral=True,
-                )
-                return
-
-            self.latitude = float(coords[0].strip())
-            self.longitude = float(coords[1].strip())
-            self.coordinates = (self.latitude, self.longitude)
-            self.update_map()
-            await self.refresh_message(interaction, notice="Coordinates updated.")
-        except (ValueError, TypeError):
-            await interaction.followup.send(
-                "Invalid coordinates. Please enter numeric `latitude, longitude` values.",
-                ephemeral=True,
-            )
+            coords_msg = await self.bot.wait_for('message', check=check, timeout=60)
+            coords = coords_msg.content.split(',')
+            if len(coords) == 2:
+                self.latitude, self.longitude = float(coords[0].strip()), float(coords[1].strip())
+                self.update_map()
+                await self.update_embed(interaction)
+                await interaction.response.send_message(embed=discord.Embed(description="Coordinates updated."), ephemeral=True)
+            else:
+                await interaction.response.send_message("Invalid coordinates format. Please enter in the format 'latitude, longitude'.", ephemeral=True)
         except asyncio.TimeoutError:
-            await interaction.followup.send(
-                "You took too long to respond. Please try again.", ephemeral=True
-            )
+            await interaction.followup.send("You took too long to respond. Please try again.", ephemeral=True)
 
     @discord.ui.button(label="Enter Address", style=ButtonStyle.success)
-    async def enter_address(
-        self, interaction: discord.Interaction, button: ui.Button
-    ):
-        await interaction.response.send_message(
-            "Please enter the address:", ephemeral=True
-        )
+    async def enter_address(self, interaction: discord.Interaction, button: ui.Button):
+        await interaction.response.send_message("Please enter the address:", ephemeral=True)
+
 
         def check(message):
-            return (
-                message.author == interaction.user
-                and message.channel == interaction.channel
-            )
+            return message.author == interaction.user and message.channel == interaction.channel
 
         try:
-            address_msg = await self.bot.wait_for("message", check=check, timeout=60)
-            coordinates = await self.fetch_coordinates(address_msg.content)
-            if coordinates is None:
-                await interaction.followup.send(
-                    "Failed to retrieve coordinates for that address. Please try again.",
-                    ephemeral=True,
-                )
-                return
-
-            self.latitude, self.longitude = coordinates
-            self.coordinates = coordinates
-            self.location = address_msg.content
-            self.update_map()
-            await self.refresh_message(interaction, notice="Address updated.")
+            address_msg = await self.bot.wait_for('message', check=check, timeout=60)
+            address = address_msg.content
+            self.coordinates = self.get_coordinates(address)
+            if self.coordinates == (None, None):
+                await interaction.response.send_message("Failed to retrieve coordinates for the address. Please try again.", ephemeral=True)
+            else:
+                self.latitude, self.longitude = float(self.coordinates[0]), float(self.coordinates[1])
+                self.update_map()
+                await self.update_embed(interaction)
+                await interaction.response.send_message(embed=discord.Embed(description="Address updated."), ephemeral=True)
         except asyncio.TimeoutError:
-            await interaction.followup.send(
-                "You took too long to respond. Please try again.", ephemeral=True
-            )
+            await interaction.followup.send("You took too long to respond. Please try again.", ephemeral=True)
 
 
 class MapStyleSelect(ui.Select):
     def __init__(self, map_view):
-        super().__init__(
-            placeholder="Select Map Style",
-            options=[
-                SelectOption(label="Map", value="map"),
-                SelectOption(label="Satellite", value="sat"),
-                SelectOption(label="Hybrid", value="hyb"),
-                SelectOption(label="Light", value="light"),
-                SelectOption(label="Dark", value="dark"),
-            ],
-        )
-        self.map_view = map_view
+        super().__init__(placeholder='Select Map Style')
+        self.map_view = map_view  
+        options = [
+            SelectOption(label='Map', value='map'),
+            SelectOption(label='Satellite', value='sat'),
+            SelectOption(label='Hybrid', value='hyb'),
+            SelectOption(label='Light', value='light'),
+            SelectOption(label='Dark', value='dark'),
+        ]
+        self.options = options
 
     async def callback(self, interaction: discord.Interaction):
+        print(f"Changing map style to {self.values[0]}")
         self.map_view.map_style = self.values[0]
         self.map_view.update_map()
-        await self.map_view.refresh_message(interaction)
-
+        await self.map_view.update_embed(interaction)
+        await interaction.response.send_message("Map style updated successfully.", ephemeral=True)
 
 class MapSizeSelect(ui.Select):
     def __init__(self, map_view):
-        super().__init__(
-            placeholder="Select Map Size",
-            options=[
-                SelectOption(label="400x300", value="400,300"),
-                SelectOption(label="800x600", value="800,600"),
-                SelectOption(label="1200x900", value="1200,900"),
-            ],
-        )
-        self.map_view = map_view
+        super().__init__(placeholder='Select Map Size')
+        self.map_view = map_view  
+        options = [
+            SelectOption(label='400x300', value='400,300'),
+            SelectOption(label='800x600', value='800,600'),
+            SelectOption(label='1200x900', value='1200,900')
+        ]
+        self.options = options
 
     async def callback(self, interaction: discord.Interaction):
+        print(f"Changing map size to {self.values[0]}")
         self.map_view.map_size = self.values[0]
         self.map_view.update_map()
-        await self.map_view.refresh_message(interaction)
+        await self.map_view.update_embed(interaction)
+        await interaction.response.send_message("Map size updated successfully.", ephemeral=True)
 
 
 class Map(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.hybrid_command(
-        name="map",
-        help="Shows a map of a location",
-        usage="<location>",
-        description="Shows a map of a location",
-    )
+    @commands.hybrid_command(name="map", help="Shows a map of a location", usage="<location>", description="Shows a map of a location")
     @blacklist_check()
     @ignore_check()
     @commands.cooldown(1, 5, commands.BucketType.user)
     async def map(self, ctx, *, location: str):
-        coordinates = await MapView.fetch_coordinates(location)
-        if coordinates is None:
+        view = MapView(self.bot, location, ctx)
+        if view.coordinates == (None, None):
             await ctx.send("Failed to retrieve coordinates for the location. Please try again.")
             return
+        embed = discord.Embed(title=f" Map of {location}", color=0x000000)
+        embed.add_field(name="🌐  Open in Webpage", value=f"➜  **[Click Here](https://www.openstreetmap.org/?mlat={view.coordinates[0]}&mlon={view.coordinates[1]}&zoom={view.zoom_level})**")
+        embed.add_field(name="🔍  Current Zoom Level", value=f"➜  {str(view.zoom_level)}")
+        embed.add_field(name="🗺️  Map Style", value=f"➜  {view.map_style}")
+        embed.add_field(name="📏  Map Size", value=f"➜  {view.map_size}")
+        embed.add_field(name="📍 Current Coordinates", value=f"➜  {view.coordinates[0]}, {view.coordinates[1]}")
+        embed.set_image(url=view.map_url)
+        embed.set_footer(text=f"Requested By {ctx.author}", icon_url=ctx.author.avatar.url if ctx.author.avatar else ctx.author.default_avatar.url)
+        await ctx.send(embed=embed, view=view)
 
-        view = MapView(self.bot, location, ctx, coordinates[0], coordinates[1])
-        await ctx.send(embed=view.build_embed(), view=view)
+
+
+
+    """
+    @Author: Sonu Jana
+        + Discord: me.sonu
+        + Community: https://discord.gg/odx (Olympus Development)
+        + for any queries reach out Community or DM me.
+    """

@@ -1,3 +1,7 @@
+from utils import emojis
+from utils.components_v2 import success_panel, error_panel, info_panel
+
+import asyncio
 import discord
 from discord.ext import commands
 import aiosqlite
@@ -8,10 +12,7 @@ class AutoReaction(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.db_path = 'db/autoreact.db'
-        self.bot.create_background_task(
-            self.setup_database(),
-            name="AutoReaction.setup_database",
-        )
+        asyncio.create_task(self.setup_database())
 
     async def setup_database(self):
         async with aiosqlite.connect(self.db_path) as db:
@@ -53,63 +54,42 @@ class AutoReaction(commands.Cog):
     @commands.max_concurrency(1, per=commands.BucketType.default, wait=False)
     @commands.guild_only()
     @commands.has_permissions(administrator=True)
-    async def add(self, ctx, trigger: str, *, emojis: str):
+    async def add(self, ctx, trigger: str, *, emojis_arg: str):
         if len(trigger.split()) > 1:
-            embed = discord.Embed(
-                title="<:CrossIcon:1327829124894429235> Invalid Trigger",
-                description="Triggers can only be one word.",
-                color=0x000000
-            )
-            embed.set_footer(text=f"Requested By {ctx.author}",
-                   icon_url=ctx.author.avatar.url if ctx.author.avatar else ctx.author.default_avatar.url)
-            return await ctx.reply(embed=embed)
+            return await ctx.reply(view=error_panel(
+                "Triggers can only be one word.",
+                title=f"{emojis.CROSSICON} Invalid Trigger"
+            ))
 
-        
-        emoji_list = re.findall(r"<a?:\w+:\d+>|[\u263a-\U0001f645]", emojis)
+        emoji_list = re.findall(r"<a?:\w+:\d+>|[\u263a-\U0001f645]", emojis_arg)
         if len(emoji_list) > 10:
-            embed = discord.Embed(
-                title="<:CrossIcon:1327829124894429235> Too Many Emojis",
-                description="You can only set up to **10** emojis per trigger.",
-                color=0x000000
-            )
-            embed.set_footer(text=f"Requested By {ctx.author}",
-                   icon_url=ctx.author.avatar.url if ctx.author.avatar else ctx.author.default_avatar.url)
-            return await ctx.reply(embed=embed)
+            return await ctx.reply(view=error_panel(
+                "You can only set up to **10** emojis per trigger.",
+                title=f"{emojis.CROSSICON} Too Many Emojis"
+            ))
 
         triggers = await self.get_triggers(ctx.guild.id)
         if len(triggers) >= 10:
-            embed = discord.Embed(
-                title="<:icons_warning:1327829522573430864> Trigger Limit Reached",
-                description="You can only set up to 10 triggers for auto-reactions in this guild.",
-                color=0x000000
-            )
-            embed.set_footer(text=f"Requested By {ctx.author}",
-                   icon_url=ctx.author.avatar.url if ctx.author.avatar else ctx.author.default_avatar.url)
-            return await ctx.reply(embed=embed)
+            return await ctx.reply(view=error_panel(
+                "You can only set up to 10 triggers for auto-reactions in this guild.",
+                title=f"{emojis.ICONS_WARNING} Trigger Limit Reached"
+            ))
 
         if await self.trigger_exists(ctx.guild.id, trigger):
-            embed = discord.Embed(
-                title="<:icons_warning:1327829522573430864> Trigger Exists",
-                description=f"The trigger '{trigger}' already exists. Remove it before adding it again.",
-                color=0x000000
-            )
-            embed.set_footer(text=f"Requested By {ctx.author}",
-                   icon_url=ctx.author.avatar.url if ctx.author.avatar else ctx.author.default_avatar.url)
-            return await ctx.reply(embed=embed)
+            return await ctx.reply(view=error_panel(
+                f"The trigger '{trigger}' already exists. Remove it before adding it again.",
+                title=f"{emojis.ICONS_WARNING} Trigger Exists"
+            ))
 
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute("INSERT INTO autoreact (guild_id, trigger, emojis) VALUES (?, ?, ?)", 
                              (ctx.guild.id, trigger, " ".join(emoji_list)))
             await db.commit()
 
-        embed = discord.Embed(
-            title="<:tick:1327829594954530896> Trigger Added",
-            description=f"Successfully added trigger '{trigger}' with emojis {', '.join(emoji_list)}.",
-            color=0x000000
-        )
-        embed.set_footer(text=f"Requested By {ctx.author}",
-               icon_url=ctx.author.avatar.url if ctx.author.avatar else ctx.author.default_avatar.url)
-        await ctx.reply(embed=embed)
+        await ctx.reply(view=success_panel(
+            f"Successfully added trigger '{trigger}' with emojis {', '.join(emoji_list)}.",
+            title=f"{emojis.TICK} Trigger Added"
+        ))
 
     @react.command(name="remove", aliases=["clear", "delete"], help="Removes a trigger and its emojis from the autoreact.")
     @blacklist_check()
@@ -120,27 +100,19 @@ class AutoReaction(commands.Cog):
     @commands.has_permissions(administrator=True)
     async def remove(self, ctx, trigger: str):
         if not await self.trigger_exists(ctx.guild.id, trigger):
-            embed = discord.Embed(
-                title="<:CrossIcon:1327829124894429235> Trigger Not Found",
-                description=f"The trigger '{trigger}' does not exist.",
-                color=0x000000
-            )
-            embed.set_footer(text=f"Requested By {ctx.author}",
-                   icon_url=ctx.author.avatar.url if ctx.author.avatar else ctx.author.default_avatar.url)
-            return await ctx.reply(embed=embed)
+            return await ctx.reply(view=error_panel(
+                f"The trigger '{trigger}' does not exist.",
+                title=f"{emojis.CROSSICON} Trigger Not Found"
+            ))
 
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute("DELETE FROM autoreact WHERE guild_id = ? AND trigger = ?", (ctx.guild.id, trigger))
             await db.commit()
 
-        embed = discord.Embed(
-            title="<:tick:1327829594954530896> Trigger Removed",
-            description=f"Successfully removed trigger '{trigger}'.",
-            color=0x000000
-        )
-        embed.set_footer(text=f"Requested By {ctx.author}",
-               icon_url=ctx.author.avatar.url if ctx.author.avatar else ctx.author.default_avatar.url)
-        await ctx.reply(embed=embed)
+        await ctx.reply(view=success_panel(
+            f"Successfully removed trigger '{trigger}'.",
+            title=f"{emojis.TICK} Trigger Removed"
+        ))
 
     @react.command(name="list", aliases=["show", "config"], help="Lists all the triggers and their emojis in the autoreact module.")
     @blacklist_check()
@@ -152,22 +124,16 @@ class AutoReaction(commands.Cog):
     async def list(self, ctx):
         triggers = await self.get_triggers(ctx.guild.id)
         if not triggers:
-            embed = discord.Embed(
-                title="No Triggers Set",
-                description="There are no auto-reaction triggers set in this guild.",
-                color=0x000000
-            )
-            return await ctx.reply(embed=embed)
+            return await ctx.reply(view=info_panel(
+                "There are no auto-reaction triggers set in this guild.",
+                title="No Triggers Set"
+            ))
 
         trigger_list = "\n".join([f"{t[0]}: {t[1]}" for t in triggers])
-        embed = discord.Embed(
-            title="Auto-Reaction Triggers",
-            description=trigger_list,
-            color=0x000000
-        )
-        embed.set_footer(text=f"Requested By {ctx.author}",
-               icon_url=ctx.author.avatar.url if ctx.author.avatar else ctx.author.default_avatar.url)
-        await ctx.reply(embed=embed)
+        await ctx.reply(view=info_panel(
+            trigger_list,
+            title="Auto-Reaction Triggers"
+        ))
 
     @react.command(name="reset", help="Resets all the triggers and their emojis in the autoreact module.")
     @blacklist_check()
@@ -179,27 +145,19 @@ class AutoReaction(commands.Cog):
     async def reset(self, ctx):
         triggers = await self.get_triggers(ctx.guild.id)
         if not triggers:
-            embed = discord.Embed(
-                title="<:CrossIcon:1327829124894429235> No Triggers Set",
-                description="There are no auto-reaction triggers set to reset.",
-                color=0x000000
-            )
-            embed.set_footer(text=f"Requested By {ctx.author}",
-                   icon_url=ctx.author.avatar.url if ctx.author.avatar else ctx.author.default_avatar.url)
-            return await ctx.reply(embed=embed)
+            return await ctx.reply(view=error_panel(
+                "There are no auto-reaction triggers set to reset.",
+                title=f"{emojis.CROSSICON} No Triggers Set"
+            ))
 
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute("DELETE FROM autoreact WHERE guild_id = ?", (ctx.guild.id,))
             await db.commit()
 
-        embed = discord.Embed(
-            title="<:tick:1327829594954530896> All Triggers Reset",
-            description="Successfully removed all auto-reaction triggers.",
-            color=0x000000
-        )
-        embed.set_footer(text=f"Requested By {ctx.author}",
-                       icon_url=ctx.author.avatar.url if ctx.author.avatar else ctx.author.default_avatar.url)
-        await ctx.reply(embed=embed)
+        await ctx.reply(view=success_panel(
+            "Successfully removed all auto-reaction triggers.",
+            title=f"{emojis.TICK} All Triggers Reset"
+        ))
 
 async def setup(bot):
     await bot.add_cog(AutoReaction(bot))

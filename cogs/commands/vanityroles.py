@@ -10,15 +10,8 @@ DB_PATH = "db/vanity.db"
 class VanityRoles(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.bot.create_background_task(
-            self._startup(),
-            name="VanityRoles.startup",
-        )
-
-    async def _startup(self):
-        await self.initialize_db()
-        if not self.vanity_checker.is_running():
-            self.vanity_checker.start()
+        self.bot.loop.create_task(self.initialize_db())
+        self.vanity_checker.start()
 
     async def initialize_db(self):
         os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)

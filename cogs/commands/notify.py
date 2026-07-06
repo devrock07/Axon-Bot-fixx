@@ -7,10 +7,7 @@ class NotifCommands(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.db_path = "db/notify.db"
-        self.loop_task = self.bot.create_background_task(
-            self.setup_db(),
-            name="NotifCommands.setup_db",
-        )
+        self.loop_task = self.bot.loop.create_task(self.setup_db())
 
     async def setup_db(self):
         async with aiosqlite.connect(self.db_path) as db:

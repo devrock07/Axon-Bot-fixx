@@ -115,9 +115,8 @@ class View(discord.ui.View):
                 embeds.append(embed)
                 total_pages += 1
 
-        avatar_url = self.ctx.bot.user.avatar.url if self.ctx.bot.user.avatar else None
         self.home.set_footer(text=f"• Help page 1/{total_pages} | Requested by: {self.ctx.author.display_name}",
-                             icon_url=avatar_url)
+                             icon_url=f"{self.ctx.bot.user.avatar.url}")
 
         return options, embeds, total_pages
 
@@ -129,9 +128,8 @@ class View(discord.ui.View):
         if not self.index + page < 0 or not self.index + page > len(self.options):
             await self.set_index(page)
             embed = self.embeds[self.index]
-            avatar_url = self.ctx.bot.user.avatar.url if self.ctx.bot.user.avatar else None
             embed.set_footer(text=f"• Help page {self.index + 1}/{self.total_pages} | Requested by: {self.ctx.author.display_name}",
-                             icon_url=avatar_url)
+                             icon_url=f"{self.ctx.bot.user.avatar.url}")
             await interaction.response.edit_message(embed=embed, view=self)
 
     async def set_page(self, page: int, interaction: discord.Interaction):

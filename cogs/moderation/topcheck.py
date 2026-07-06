@@ -7,7 +7,7 @@ class TopCheck(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.db_path = "db/topcheck.db"
-        self.bot.create_background_task(self.setup(), name="TopCheck.setup")
+        self.bot.loop.create_task(self.setup())
 
     async def setup(self):
         async with aiosqlite.connect(self.db_path) as db:

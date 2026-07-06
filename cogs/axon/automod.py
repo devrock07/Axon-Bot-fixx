@@ -1,3 +1,5 @@
+from utils import emojis
+
 import discord
 from discord.ext import commands
 
@@ -8,7 +10,7 @@ class _automod(commands.Cog):
     """Automod commands"""
   
     def help_custom(self):
-		      emoji = '<:Bots:1330393366373863526>'
+		      emoji = f'{emojis.BOTS}'
 		      label = "Automod Commands"
 		      description = "Show you Commands of automod"
 		      return emoji, label, description

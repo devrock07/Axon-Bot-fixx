@@ -19,10 +19,8 @@ class Customrole(commands.Cog):
         self.rate_limit = {}
         self.rate_limit_timeout = 5
 
-        self.bot.create_background_task(
-            self.create_tables(),
-            name="Customrole.create_tables",
-        )
+
+        self.bot.loop.create_task(self.create_tables())
 
 
     async def reset_rate_limit(self, user_id):

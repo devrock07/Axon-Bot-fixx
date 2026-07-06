@@ -6,11 +6,6 @@ from __future__ import annotations
 
 from typing import NamedTuple
 
-#import os
-#os.system("pip install chess")
-#os.system("pip install english-words")
-#os.system("pip install pillow")
-#os.system("pip install typing_extensions")
 #from .aki import Akinator
 from .battleship import BattleShip
 from .chess_game import Chess

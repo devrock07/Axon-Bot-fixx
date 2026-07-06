@@ -64,15 +64,8 @@ class Giveaway(commands.Cog):
         await self.check_for_ended_giveaways() 
         self.GiveawayEnd.start()
 
-    def cog_unload(self) -> None:
-        if self.GiveawayEnd.is_running():
-            self.GiveawayEnd.cancel()
-        connection = getattr(self, "connection", None)
-        if connection is not None:
-            self.bot.create_background_task(
-                connection.close(),
-                name="Giveaway.connection.close",
-            )
+    async def cog_unload(self) -> None:
+        await self.connection.close()
 
     async def check_for_ended_giveaways(self):
         await self.cursor.execute("SELECT ends_at, guild_id, message_id, host_id, winners, prize, channel_id FROM Giveaway WHERE ends_at <= ?", (datetime.datetime.now().timestamp(),))

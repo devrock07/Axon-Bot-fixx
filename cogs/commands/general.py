@@ -93,13 +93,6 @@ class General(commands.Cog):
     self._URL_REGEX = r'(?P<url><[^: >]+:\/[^ >]+>|(?:https?|steam):\/\/[^\s<]+[^<.,:;\"\'\]\s])'
     self.color = 0x000000
 
-  def cog_unload(self):
-    if not self.aiohttp.closed:
-      self.bot.create_background_task(
-        self.aiohttp.close(),
-        name="General.aiohttp.close",
-      )
-
 
   @commands.hybrid_command(
     usage="Avatar <member>",
@@ -440,9 +433,9 @@ class General(commands.Cog):
   @ignore_check()
   @commands.cooldown(1, 3, commands.BucketType.user)
   async def invite(self, ctx: commands.Context):
-    embed = discord.Embed(title="India Invite & Support!",
+    embed = discord.Embed(title="Axon X Invite & Support!",
       description=
-      f"> <:icons_plus:1328966531140288524> **[India - Invite Bot](https://discord.com/oauth2/authorize?client_id=1313160406117646417&permissions=8&integration_type=0&scope=bot+applications.commands)**\n> <:icons_plus:1328966531140288524> **[IndiaX - Support](https://discord.gg/india)**",
+      f"> <:icons_plus:1328966531140288524> **[Axon X - Invite Bot](https://discord.com/oauth2/authorize?client_id=1313160406117646417&permissions=8&integration_type=0&scope=bot+applications.commands)**\n> <:icons_plus:1328966531140288524> **[Axon X - Support](https://discord.gg/codexdev)**",
       color=0x0ba7ff)
 
     embed.set_footer(text=f"Requested by {ctx.author.name}",
@@ -461,3 +454,4 @@ class General(commands.Cog):
     view.add_item(support)
     
     await ctx.send(embed=embed, view=view)
+

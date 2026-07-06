@@ -4,8 +4,6 @@ import sqlite3
 from datetime import datetime
 
 DB_FILE = "logging.db"
-LOGGING_CATEGORY_NAME = "India-logging"
-LEGACY_LOGGING_CATEGORY_NAME = "Axon-logging"
 
 LOG_CHANNELS = {
     "channel-logs": "channel",
@@ -50,41 +48,18 @@ class Logging(commands.Cog):
             result = cursor.fetchone()
             return result[0] if result else None
 
-    def remove_log_channel(self, guild_id, log_type):
-        with sqlite3.connect(self.db_path) as conn:
-            conn.execute(
-                "DELETE FROM log_channels WHERE guild_id = ? AND log_type = ?",
-                (guild_id, log_type)
-            )
-            conn.commit()
-
     async def send_log(self, guild, log_type, embed):
         embed.timestamp = datetime.utcnow()
         channel_id = self.get_log_channel(guild.id, log_type)
-        if not channel_id:
-            return
-
-        channel = guild.get_channel(channel_id)
-        if channel is None:
-            self.remove_log_channel(guild.id, log_type)
-            return
-
-        permissions = channel.permissions_for(guild.me)
-        if not permissions.view_channel or not permissions.send_messages:
-            self.remove_log_channel(guild.id, log_type)
-            return
-
-        try:
-            await channel.send(embed=embed)
-        except (discord.Forbidden, discord.NotFound):
-            self.remove_log_channel(guild.id, log_type)
-        except discord.HTTPException:
-            pass
+        if channel_id:
+            channel = guild.get_channel(channel_id)
+            if channel:
+                await channel.send(embed=embed)
 
     @commands.command(name="loggingsetup")
     @commands.has_permissions(administrator=True)
     async def setlogsetup(self, ctx):
-        """Creates India-logging category and log channels with private permissions"""
+        """Creates Axon-logging category and log channels with private permissions"""
         guild = ctx.guild
 
         overwrites = {
@@ -92,17 +67,9 @@ class Logging(commands.Cog):
             guild.me: discord.PermissionOverwrite(view_channel=True, send_messages=True)
         }
 
-        category = discord.utils.get(guild.categories, name=LOGGING_CATEGORY_NAME)
+        category = discord.utils.get(guild.categories, name="Axon-logging")
         if not category:
-            category = discord.utils.get(
-                guild.categories,
-                name=LEGACY_LOGGING_CATEGORY_NAME,
-            )
-        if not category:
-            category = await guild.create_category(
-                LOGGING_CATEGORY_NAME,
-                overwrites=overwrites,
-            )
+            category = await guild.create_category("Axon-logging", overwrites=overwrites)
 
         for name, log_type in LOG_CHANNELS.items():
             channel = discord.utils.get(guild.text_channels, name=name)
@@ -110,12 +77,12 @@ class Logging(commands.Cog):
                 channel = await guild.create_text_channel(name=name, category=category, overwrites=overwrites)
             self.set_log_channel(guild.id, log_type, channel.id)
 
-        await ctx.send("Logging channels created privately under 'India-logging'.")
+        await ctx.send("✅ Logging channels created privately under 'Axon-logging'.")
 
     @commands.command(name="removelogs")
     @commands.has_permissions(administrator=True)
     async def removelogs(self, ctx):
-        """Removes India-logging channels and logging DB config"""
+        """Removes Axon-logging channels and logging DB config"""
         guild = ctx.guild
 
         # Remove DB entries
@@ -124,17 +91,13 @@ class Logging(commands.Cog):
             conn.commit()
 
         # Delete channels and category
-        categories = [
-            category
-            for category in guild.categories
-            if category.name in {LOGGING_CATEGORY_NAME, LEGACY_LOGGING_CATEGORY_NAME}
-        ]
-        for category in categories:
+        category = discord.utils.get(guild.categories, name="Axon-logging")
+        if category:
             for channel in category.channels:
                 await channel.delete()
             await category.delete()
 
-        await ctx.send("Logging channels and the logging category have been removed.")
+        await ctx.send("🗑️ Logging channels and category 'Axon-logging' have been removed.")
 
     # === Events ===
 

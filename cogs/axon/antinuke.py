@@ -1,3 +1,5 @@
+from utils import emojis
+
 import discord
 from discord.ext import commands
 
@@ -9,7 +11,7 @@ class _antinuke(commands.Cog):
     """Antinuke commands"""
   
     def help_custom(self):
-		      emoji = '<:security:1330393362305515560>'
+		      emoji = f'{emojis.SECURITY}'
 		      label = "Security Commands"
 		      description = "Show you Commands of Antinuke"
 		      return emoji, label, description

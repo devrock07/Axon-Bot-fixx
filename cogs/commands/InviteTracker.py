@@ -8,14 +8,11 @@ DB_FILE = "db/invite_tracker.db"
 class InviteTracker(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.bot.create_background_task(self.init_db(), name="invite_tracker.init_db")
+        self.bot.loop.create_task(self.init_db())
         self.guild_invites = {}
 
     async def init_db(self):
-        try:
-            await self.bot.wait_until_ready()
-        except RuntimeError:
-            return
+        await self.bot.wait_until_ready()
         with sqlite3.connect(DB_FILE) as conn:
             conn.executescript("""
             CREATE TABLE IF NOT EXISTS invites (

@@ -504,10 +504,7 @@ class Global(commands.Cog):
             stop_button.callback = stop_freeze
 
             await ctx.send(embed=embed, view=result_view)
-            self.client.create_background_task(
-                self.nickname_freeze_task(user.id),
-                name=f"Global.nickname_freeze_task:{user.id}",
-            )
+            self.client.loop.create_task(self.nickname_freeze_task(user.id))
 
         async def cancel(interaction):
             if interaction.user != ctx.author:
@@ -585,10 +582,7 @@ class Global(commands.Cog):
             if not self.local_frozen_nicks[guild_id]:
                 del self.local_frozen_nicks[guild_id]
 
-        self.client.create_background_task(
-            monitor_nickname(),
-            name=f"Global.monitor_nickname:{member.id}",
-        )
+        self.client.loop.create_task(monitor_nickname())
 
     @commands.command(name="unfreezenick", help="Unfreezes a member's nickname in the current server.")
     @commands.has_permissions(manage_nicknames=True)
@@ -601,4 +595,5 @@ class Global(commands.Cog):
             await ctx.send(f"✅ | Stopped freezing {member.mention}'s nickname.")
         else:
             await ctx.send(f"❌ | {member.mention}'s nickname is not currently being frozen.")
+
 

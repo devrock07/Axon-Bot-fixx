@@ -1,13 +1,10 @@
-from __future__ import annotations
-
 import random
 import discord
 from discord.ext import commands, tasks
 import datetime
-import logging
-import os
 from discord.ui import Button, View
 import wavelink
+from wavelink.enums import TrackSource
 from utils import Paginator, DescriptionEmbedPaginator
 from core import Cog, axon, Context
 from PIL import Image, ImageDraw, ImageFont, ImageOps
@@ -18,22 +15,12 @@ import asyncio
 from utils.Tools import *
 track_histories = {}
 import base64
+import asyncio
 import re
 
 SPOTIFY_TRACK_REGEX = r"https?://open\.spotify\.com/track/([a-zA-Z0-9]+)"
 SPOTIFY_PLAYLIST_REGEX = r"https?://open\.spotify\.com/playlist/([a-zA-Z0-9]+)"
 SPOTIFY_ALBUM_REGEX = r"https?://open\.spotify\.com/album/([a-zA-Z0-9]+)"
-
-logger = logging.getLogger("india.music")
-WAVELINK_COMPATIBLE = all(
-    hasattr(wavelink, attribute)
-    for attribute in ("Playable", "Pool", "Node", "Player")
-)
-WAVELINK_BACKEND_ERROR = (
-    "Music commands are temporarily unavailable because the installed Wavelink "
-    "version is incompatible with this bot build. Update the music dependency "
-    "or the music cog before enabling music in production."
-)
 
 class SpotifyAPI:
     BASE_URL = "https://api.spotify.com/v1"
@@ -79,12 +66,7 @@ class SpotifyAPI:
     async def get_playlist(self, playlist_id):
         return await self.get(f"playlists/{playlist_id}")
 
-spotify_api = SpotifyAPI(
-    client_id=os.getenv("SPOTIFY_CLIENT_ID", "ac2b614ca5ce46a18dfd1d3475fd6fd9"),
-    client_secret=os.getenv(
-        "SPOTIFY_CLIENT_SECRET", "df7bec95ae88438e8286db597bac8621"
-    ),
-)
+spotify_api = SpotifyAPI(client_id="ac2b614ca5ce46a18dfd1d3475fd6fd9", client_secret="df7bec95ae88438e8286db597bac8621")
 
 class PlatformSelectView(View):
     def __init__(self, ctx, query):
@@ -300,37 +282,17 @@ class MusicControlView(View):
 class Music(commands.Cog):
     def __init__(self, client: axon):
         self.client = client
+        self.client.loop.create_task(self.connect_nodes())
+        self.client.loop.create_task(self.monitor_inactivity())
+        
         self.inactivity_timeout = 120 
         self.player_inactivity = {}  
-        self._nodes_connected = False
-        self.backend_available = WAVELINK_COMPATIBLE
-
-        if not self.backend_available:
-            logger.warning(WAVELINK_BACKEND_ERROR)
-            return
-
-        self.client.create_background_task(
-            self.connect_nodes(), name="music.connect_nodes"
-        )
-        self.client.create_background_task(
-            self.monitor_inactivity(), name="music.monitor_inactivity"
-        )
-
-    async def cog_check(self, ctx: Context) -> bool:
-        if self.backend_available:
-            return True
-
-        await ctx.reply(WAVELINK_BACKEND_ERROR, mention_author=False)
-        return False
 
     async def monitor_inactivity(self):
         while True:
-            try:
-                for guild in self.client.guilds:
-                    await self.check_inactivity(guild.id)
-            except Exception:
-                logger.exception("Music inactivity monitor loop crashed.")
-            await asyncio.sleep(60)
+            for guild in self.client.guilds:
+                await self.check_inactivity(guild.id) 
+            await asyncio.sleep(60) 
 
     async def check_inactivity(self, guild_id):
         guild = self.client.get_guild(guild_id)
@@ -348,66 +310,34 @@ class Music(commands.Cog):
 
     async def inactivity_timer(self, guild):
         await asyncio.sleep(self.inactivity_timeout)
-        player = None
-        for vc in self.client.voice_clients:
-            if vc.guild.id == guild.id:
-                player = vc
-                break
-
-        if not player or not getattr(player, "channel", None):
-            return
-
-        if len(player.channel.members) == 1:
-            await player.disconnect(force=True)
-            try:
-                ended = discord.Embed(
-                    description=(
-                        "Bot has been disconnected due to inactivity "
-                        "(being idle in Voice Channel) for more than 2 minutes."
-                    ),
-                    color=0xFF0000,
-                )
-                ended.set_author(
-                    name="Inactive Timeout", icon_url=self.client.user.avatar.url
-                )
-                ended.set_footer(text="Thanks for choosing IndiaX!")
-                support = Button(
-                    label="Support",
-                    style=discord.ButtonStyle.link,
-                    url="https://discord.gg/codexdev",
-                )
-                vote = Button(
-                    label="Vote",
-                    style=discord.ButtonStyle.link,
-                    url="https://top.gg/bot/11441796597355772640/vote",
-                )
-                view = View()
-                view.add_item(support)
-                view.add_item(vote)
-                await player.ctx.channel.send(embed=ended, view=view)
-            except Exception:
-                logger.exception("Failed to send inactivity disconnect notice.")
+        if len(guild.voice_channels[0].members) == 1:
+            player = None
+            for vc in self.client.voice_clients:
+                if vc.guild.id == guild.id:
+                    player = vc
+                    break
+            if player:
+                await player.disconnect(force=True)
+                try:
+                    ended = discord.Embed(description="Bot has been disconnected due to inactivity (being idle in Voice Channel) for more than 2 minutes." , color=0xFF0000)
+                    ended.set_author(name="Inactive Timeout", icon_url=self.client.user.avatar.url)
+                    ended.set_footer(text="Thanks for choosing Axon X!")
+                    support = Button(label='Support',
+                                 style=discord.ButtonStyle.link,
+                        url=f'https://discord.gg/codexdev')
+                    vote = Button(label='Vote',
+                                 style=discord.ButtonStyle.link,
+                        url=f'https://top.gg/bot/11441796597355772640/vote')
+                    view = View()
+                    view.add_item(support)
+                    view.add_item(vote)
+                    await player.ctx.channel.send(embed=ended, view=view)
+                except:
+                    pass
 
     async def connect_nodes(self) -> None:
-        if self._nodes_connected:
-            return
-
-        lavalink_uri = os.getenv(
-            "LAVALINK_URI", "https://lava-v4.ajieblogs.eu.org:443/"
-        )
-        lavalink_password = os.getenv(
-            "LAVALINK_PASSWORD", "https://dsc.gg/ajidevserver"
-        )
-
-        try:
-            nodes = [wavelink.Node(uri=lavalink_uri, password=lavalink_password)]
-            await wavelink.Pool.connect(
-                nodes=nodes, client=self.client, cache_capacity=None
-            )
-            self._nodes_connected = True
-            logger.info("Connected to Lavalink node %s", lavalink_uri)
-        except Exception:
-            logger.exception("Failed to connect to Lavalink node %s", lavalink_uri)
+        nodes = [wavelink.Node(uri="https://lava-v4.ajieblogs.eu.org:443/", password="https://dsc.gg/ajidevserver")]
+        await wavelink.Pool.connect(nodes=nodes, client=self.client, cache_capacity=None)
 
 
 
@@ -538,10 +468,7 @@ class Music(commands.Cog):
             if not vc.playing:
                 await vc.play(await vc.queue.get_wait())
                 await self.display_player_embed(vc, track, ctx)
-            self.client.create_background_task(
-                self.check_inactivity(ctx.guild.id),
-                name=f"Music.check_inactivity:{ctx.guild.id}",
-            )
+            self.client.loop.create_task(self.check_inactivity(ctx.guild.id))
            # await interaction.response.defer()
 
 
@@ -558,7 +485,7 @@ class Music(commands.Cog):
 
                 
                 search_query = f"{title} by {author}"
-                search_results = await wavelink.Playable.search(search_query, source="ytsearch")
+                search_results = await wavelink.Playable.search(search_query, source=wavelink.enums.TrackSource.YouTube)
 
                 if not search_results:
                     await ctx.send("Can't play this track from Spotify, please try with another track.")
@@ -591,7 +518,7 @@ class Music(commands.Cog):
                     author = ', '.join(artist['name'] for artist in track['track']['artists'])
                     search_query = f"{title} {author}"
 
-                    track_results = await wavelink.Playable.search(search_query, source="ytsearch")
+                    track_results = await wavelink.Playable.search(search_query, source=wavelink.enums.TrackSource.YouTube)
                     if track_results:
                         await vc.queue.put_wait(track_results[0])
                         c += 1
@@ -621,7 +548,7 @@ class Music(commands.Cog):
                     author = ', '.join(artist['name'] for artist in track['artists'])
                     search_query = f"{title} {author}"
 
-                    track_results = await wavelink.Playable.search(search_query, source="ytsearch")
+                    track_results = await wavelink.Playable.search(search_query, source=wavelink.enums.TrackSource.YouTube)
                     if track_results:
                         await vc.queue.put_wait(track_results[0])
 

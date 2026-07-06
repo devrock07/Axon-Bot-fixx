@@ -32,10 +32,7 @@ class Emergency(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.db_path = "db/emergency.db"
-        self.bot.create_background_task(
-            self.initialize_database(),
-            name="Emergency.initialize_database",
-        )
+        self.bot.loop.create_task(self.initialize_database())
 
     async def initialize_database(self):
         async with aiosqlite.connect(self.db_path) as db:

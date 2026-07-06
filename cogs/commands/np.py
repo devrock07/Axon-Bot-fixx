@@ -94,12 +94,7 @@ class TimeSelect(Select):
                 color=0x000000
             )
             embed.set_thumbnail(url=self.user.avatar.url if self.user.avatar else self.user.default_avatar.url)
-            try:
-                await log_channel.send(embed=embed)
-            except discord.Forbidden:
-                print(f"Failed to send log message to channel {1376174251174002799} - Missing permissions")
-            except discord.HTTPException as e:
-                print(f"Failed to send log message: {e}")
+            await log_channel.send("<#1376174251174002799>",embed=embed)
             
 
         
@@ -123,10 +118,8 @@ class NoPrefix(commands.Cog):
         self.client = client
         self.staff = set()
         self.db_path = 'db/np.db'
-        self.client.create_background_task(self.load_staff(), name="np.load_staff")
-        self.client.create_background_task(
-            self.setup_database(), name="np.setup_database"
-        )
+        self.client.loop.create_task(self.load_staff())
+        self.client.loop.create_task(self.setup_database())
         self.expiry_check.start()
 
     async def setup_database(self):
@@ -165,10 +158,7 @@ class NoPrefix(commands.Cog):
 
 
     async def load_staff(self):
-        try:
-            await self.client.wait_until_ready()
-        except RuntimeError:
-            return
+        await self.client.wait_until_ready()
         async with aiosqlite.connect(self.db_path) as db:
             async with db.execute('SELECT id FROM staff') as cursor:
                 self.staff = {row[0] for row in await cursor.fetchall()}
@@ -192,8 +182,8 @@ class NoPrefix(commands.Cog):
                             embed_log = discord.Embed(
                                 title="No Prefix Expired",
                                 description=(
-                                    f"**User**: [{user}](https://discord.com/users/{user.id})\n"
-                                    f"**User Mention**: {user.mention}\n"
+                                    f"**< User**: [{user}](https://discord.com/users/{user.id})\n"
+                                    f"**<User Mention**: {user.mention}\n"
                                     f"** ID**: {user.id}\n\n"
                                     f"** Removed By**: **IceNode Manger**\n"
                                 ),
@@ -201,12 +191,7 @@ class NoPrefix(commands.Cog):
                             )
                             embed_log.set_thumbnail(url=user.display_avatar.url if user.avatar else user.default_avatar.url)
                             embed_log.set_footer(text="No Prefix Removal Log")
-                            try:
-                                await log_channel.send(embed=embed_log)
-                            except discord.Forbidden:
-                                print(f"Failed to send expiry log to channel {1376174251174002799} - Missing permissions")
-                            except discord.HTTPException as e:
-                                print(f"Failed to send expiry log: {e}")
+                            await log_channel.send("<#1376174251174002799>", embed=embed_log)
                         bot = self.client
                         guild = bot.get_guild(699587669059174461)
                         if guild:
@@ -224,7 +209,7 @@ class NoPrefix(commands.Cog):
                         )
                         embed.set_author(name="No Prefix Expired", icon_url=user.avatar.url if user.avatar else user.default_avatar.url)
                         
-                        embed.set_footer(text="IndiaX  - No Prefix, Join support to regain access.")
+                        embed.set_footer(text="Axon X  - No Prefix, Join support to regain access.")
                         support = Button(label='Support',
                     style=discord.ButtonStyle.link,
                     url=f'https://discord.gg/codexdev')
@@ -240,10 +225,7 @@ class NoPrefix(commands.Cog):
 
     @expiry_check.before_loop
     async def before_expiry_check(self):
-        try:
-            await self.client.wait_until_ready()
-        except RuntimeError:
-            return
+        await self.client.wait_until_ready()
 
     @commands.group(name="np", help="Allows you to add someone to the no-prefix list (owner-only command)")
     @commands.check(is_owner_or_staff)
@@ -345,12 +327,7 @@ class NoPrefix(commands.Cog):
             )
             embed_log.set_thumbnail(url=user.display_avatar.url if user.avatar else user.default_avatar.url)
             embed_log.set_footer(text="No Prefix Removal Log")
-            try:
-                await log_channel.send(embed=embed_log)
-            except discord.Forbidden:
-                print(f"Failed to send removal log to channel {1299513624477306974} - Missing permissions")
-            except discord.HTTPException as e:
-                print(f"Failed to send removal log: {e}")
+            await log_channel.send("<@677952614390038559>", embed=embed_log)
 
 
     
@@ -460,19 +437,13 @@ class NoPrefix(commands.Cog):
             if not await self.is_user_in_np(after.id):
                 await self.add_np(after, timedelta(days=60))
                 log_channel = self.client.get_channel(1302312378578243765)
-                if log_channel:
-                    embed = discord.Embed(
-                        title="Added No prefix due to Boosting Partner Server",
-                        description=f"**User**: **[{after}](https://discord.com/users/{after.id})** (ID: {after.id})\n**Server**: {after.guild.name}",
-                        color=0x00FF00
-                    )
-                    try:
-                        message = await log_channel.send(embed=embed)
-                        await message.publish()
-                    except discord.Forbidden:
-                        print(f"Failed to send boost log to channel {1302312378578243765} - Missing permissions")
-                    except discord.HTTPException as e:
-                        print(f"Failed to send boost log: {e}")
+                embed = discord.Embed(
+                    title="Added No prefix due to Boosting Partner Server",
+                    description=f"**User**: **[{after}](https://discord.com/users/{after.id})** (ID: {after.id})\n**Server**: {after.guild.name}",
+                    color=0x00FF00
+                )
+                message = await log_channel.send("<@677952614390038559>", embed=embed)
+                await message.publish()
 
         elif before.premium_since is not None and after.premium_since is None:  
             await self.handle_boost_removal(after)
@@ -489,19 +460,13 @@ class NoPrefix(commands.Cog):
         if await self.is_user_in_np(user.id):
             await self.remove_np(user) 
             log_channel = self.client.get_channel(1302312616735281286)
-            if log_channel:
-                embed = discord.Embed(
-                    title="Removed No prefix due to Unboosting Partner Server",
-                    description=f"**User**: **[{user}](https://discord.com/users/{user.id})** (ID: {user.id})\n**Server**: {user.guild.name}",
-                    color=0xFF0000
-                )
-                try:
-                    message = await log_channel.send(embed=embed)
-                    await message.publish()
-                except discord.Forbidden:
-                    print(f"Failed to send boost removal log to channel {1302312616735281286} - Missing permissions")
-                except discord.HTTPException as e:
-                    print(f"Failed to send boost removal log: {e}")
+            embed = discord.Embed(
+                title="Removed No prefix due to Unboosting Partner Server",
+                description=f"**User**: **[{user}](https://discord.com/users/{user.id})** (ID: {user.id})\n**Server**: {user.guild.name}",
+                color=0xFF0000
+            )
+            message = await log_channel.send("<@677952614390038559>", embed=embed)
+            await message.publish()
 
 
     async def add_np(self, user, duration):
@@ -626,12 +591,7 @@ class NoPrefix(commands.Cog):
                     color=0x000000
                 )
                 log_embed.set_footer(text="No Prefix Reset Log")
-                try:
-                    await log_channel.send(embed=log_embed)
-                except discord.Forbidden:
-                    print(f"Failed to send reset log to channel {1299513624477306974} - Missing permissions")
-                except discord.HTTPException as e:
-                    print(f"Failed to send reset log: {e}")
+                await log_channel.send("<#1376174251174002799>", embed=log_embed)
         
         async def no_callback(interaction):
             if interaction.user != ctx.author:
@@ -648,3 +608,4 @@ class NoPrefix(commands.Cog):
         no_button.callback = no_callback
         
         await ctx.reply(embed=embed, view=view)
+

@@ -39,7 +39,8 @@ class Warn(commands.Cog):
         self.color = discord.Color.from_rgb(0, 0, 0)
         self.db_path = "db/warn.db"
 
-        self.bot.create_background_task(self.setup(), name="Warn.setup")
+        
+        asyncio.create_task(self.setup())
 
     def get_user_avatar(self, user):
         return user.avatar.url if user.avatar else user.default_avatar.url

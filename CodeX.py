@@ -1,163 +1,156 @@
-import asyncio
-import logging
 import os
+os.system("pip install -r requirements.txt")
+import asyncio
+import traceback
 from threading import Thread
+from datetime import datetime
 
 import aiohttp
 import discord
 from discord.ext import commands
-from dotenv import load_dotenv
-from flask import Flask
 
-from core.axon import IndiaBot
+from core import Context
+from core.Cog import Cog
+from core.axon import axon
+from utils.Tools import *
+from utils.config import *
+
+import jishaku
+import cogs
 
 os.environ["JISHAKU_NO_DM_TRACEBACK"] = "False"
 os.environ["JISHAKU_HIDE"] = "True"
 os.environ["JISHAKU_NO_UNDERSCORE"] = "True"
 os.environ["JISHAKU_FORCE_PAGINATOR"] = "True"
 
+from dotenv import load_dotenv
 load_dotenv()
-
 TOKEN = os.getenv("TOKEN")
-COMMAND_LOG_WEBHOOK = os.getenv("COMMAND_LOG_WEBHOOK")
-ENABLE_KEEP_ALIVE = os.getenv("ENABLE_KEEP_ALIVE", "true").strip().lower() in {
-    "1",
-    "true",
-    "yes",
-    "on",
-}
 
-logging.basicConfig(
-    level=os.getenv("LOG_LEVEL", "INFO").upper(),
-    format="[%(asctime)s] %(levelname)s %(name)s: %(message)s",
-    datefmt="%H:%M:%S",
-)
+client = axon()
+tree = client.tree
 
-logger = logging.getLogger("india.main")
-client = IndiaBot()
+@client.event
+async def on_ready():
+    await client.wait_until_ready()
+    
+    print("""
+           \033[1;31m
 
+ ▄████▄   ▒█████  ▓█████▄ ▓█████ ▒██   ██▒
+▒██▀ ▀█  ▒██▒  ██▒▒██▀ ██▌▓█   ▀ ▒▒ █ █ ▒░
+▒▓█    ▄ ▒██░  ██▒░██   █▌▒███   ░░  █   ░
+▒▓▓▄ ▄██▒▒██   ██░░▓█▄   ▌▒▓█  ▄  ░ █ █ ▒ 
+▒ ▓███▀ ░░ ████▓▒░░▒████▓ ░▒████▒▒██▒ ▒██▒
+░ ░▒ ▒  ░░ ▒░▒░▒░  ▒▒▓  ▒ ░░ ▒░ ░▒▒ ░ ░▓ ░
+  ░  ▒     ░ ▒ ▒░  ░ ▒  ▒  ░ ░  ░░░   ░▒ ░
+░        ░ ░ ░ ▒   ░ ░  ░    ░    ░    ░  
+░ ░          ░ ░     ░       ░  ░ ░    ░  
+░                  ░                      
 
-@client.listen("on_ready")
-async def log_ready_state() -> None:
-    print("India loaded and online.")
+           \033[0m
+           """)
+    print("Loaded & Online!")
     print(f"Logged in as: {client.user}")
-    print(f"Connected guilds: {len(client.guilds)}")
-    print(f"Cached users: {len(client.users)}")
-    print(f"Loaded prefix commands: {len(client.commands)}")
-
-    tree_stats = client.get_command_tree_stats()
-    print(
-        "Application commands prepared: "
-        f"{tree_stats['top_level']} top-level / {tree_stats['total_walked']} total"
-    )
-
-    invite_url = discord.utils.oauth_url(
-        client.user.id,
-        permissions=discord.Permissions(administrator=True),
-        scopes=("bot", "applications.commands"),
-    )
-    print(f"Invite with slash-command scope: {invite_url}")
-
-    sync_overview = client.get_command_sync_overview()
-    if sync_overview:
-        print(f"Last slash sync report: {sync_overview}")
-    else:
-        print("Slash commands are syncing through the startup sync manager.")
-
+    print(f"Connected to: {len(client.guilds)} guilds")
+    print(f"Connected to: {len(client.users)} users")
+    try:
+        synced = await client.tree.sync()
+        all_commands = list(client.commands)
+        print(f"Synced Total {len(all_commands)} Client Commands and {len(synced)} Slash Commands")
+    except Exception as e:
+        print(e)
 
 @client.event
 async def on_command_completion(context: commands.Context) -> None:
     if context.author.id == 767979794411028491:
         return
 
-    if not COMMAND_LOG_WEBHOOK:
-        return
+    full_command_name = context.command.qualified_name
+    split = full_command_name.split("\n")
+    executed_command = str(split[0])
+    webhook_url = "https://discord.com/api/webhooks/1389541229775159356/fnyxoWRhcIt77OLabLZLLCrKxoxQDmEN4yZbUaDMK82-qymTbMMwwQA5WkFJ4zRi0R_l"
+    async with aiohttp.ClientSession() as session:
+        webhook = discord.Webhook.from_url(webhook_url, session=session)
 
-    try:
-        full_command_name = context.command.qualified_name
-        executed_command = str(full_command_name.split("\n")[0])
-
-        async with aiohttp.ClientSession() as session:
-            webhook = discord.Webhook.from_url(COMMAND_LOG_WEBHOOK, session=session)
-            embed = discord.Embed(color=0x000000)
-            avatar_url = (
-                context.author.avatar.url
-                if context.author.avatar
-                else context.author.default_avatar.url
-            )
-            embed.set_author(
-                name=f"Executed {executed_command} Command By : {context.author}",
-                icon_url=avatar_url,
-            )
-            embed.set_thumbnail(url=avatar_url)
-            embed.add_field(name=" Command Name :", value=executed_command, inline=False)
-            embed.add_field(
-                name=" Command Executed By :",
-                value=(
-                    f"{context.author} | ID: "
-                    f"[{context.author.id}](https://discord.com/users/{context.author.id})"
-                ),
-                inline=False,
-            )
-
-            if context.guild is not None:
+        if context.guild is not None:
+            try:
+                embed = discord.Embed(color=0x000000)
+                avatar_url = context.author.avatar.url if context.author.avatar else context.author.default_avatar.url
+                embed.set_author(
+                    name=f"Executed {executed_command} Command By : {context.author}",
+                    icon_url=avatar_url
+                )
+                embed.set_thumbnail(url=avatar_url)
+                embed.add_field(name=" Command Name :",
+                                value=f"{executed_command}",
+                                inline=False)
+                embed.add_field(
+                    name=" Command Executed By :",
+                    value=f"{context.author} | ID: [{context.author.id}](https://discord.com/users/{context.author.id})",
+                    inline=False)
                 embed.add_field(
                     name=" Command Executed In :",
-                    value=(
-                        f"{context.guild.name} | ID: "
-                        f"[{context.guild.id}](https://discord.com/guilds/{context.guild.id})"
-                    ),
-                    inline=False,
-                )
+                    value=f"{context.guild.name} | ID: [{context.guild.id}](https://discord.com/guilds/{context.guild.id})",
+                    inline=False)
                 embed.add_field(
                     name=" Command Executed In Channel :",
-                    value=(
-                        f"{context.channel.name} | ID: "
-                        f"[{context.channel.id}]"
-                        f"(https://discord.com/channels/{context.guild.id}/{context.channel.id})"
-                    ),
-                    inline=False,
+                    value=f"{context.channel.name} | ID: [{context.channel.id}](https://discord.com/channels/{context.guild.id}/{context.channel.id})",
+                    inline=False)
+
+                embed.timestamp = discord.utils.utcnow()
+                embed.set_footer(text="Quantum X Development™ ❤️",
+                                 icon_url=client.user.display_avatar.url)
+                await webhook.send(embed=embed)
+            except Exception as e:
+                print(f'Command failed: {e}')
+                traceback.print_exc()
+        else:
+            try:
+                embed1 = discord.Embed(color=0x000000)
+                avatar_url = context.author.avatar.url if context.author.avatar else context.author.default_avatar.url
+                embed1.set_author(
+                    name=f"Executed {executed_command} Command By : {context.author}",
+                    icon_url=avatar_url
                 )
+                embed1.set_thumbnail(url=avatar_url)
+                embed1.add_field(name=" Command Name :",
+                                 value=f"{executed_command}",
+                                 inline=False)
+                embed1.add_field(
+                    name=" Command Executed By :",
+                    value=f"{context.author} | ID: [{context.author.id}](https://discord.com/users/{context.author.id})",
+                    inline=False)
+                embed1.set_footer(text=f"Powered by Quantum X Development™",
+                                  icon_url=client.user.display_avatar.url)
+                await webhook.send(embed=embed1)
+            except Exception as e:
+                print(f'Command failed: {e}')
+                traceback.print_exc()
 
-            embed.timestamp = discord.utils.utcnow()
-            embed.set_footer(
-                text="India Development",
-                icon_url=client.user.display_avatar.url if client.user else None,
-            )
-            await webhook.send(embed=embed)
-    except Exception:
-        logger.exception("Failed to send command completion webhook.")
-
+from flask import Flask
+from threading import Thread
 
 app = Flask(__name__)
 
-
-@app.route("/")
+@app.route('/')
 def home():
-    return "India Server 2026"
-
+    return f"Axon Development™ 2025"
 
 def run():
-    app.run(host="0.0.0.0", port=8080, use_reloader=False)
-
+    app.run(host='0.0.0.0', port=8080)
 
 def keep_alive():
-    server = Thread(target=run, daemon=True)
+    server = Thread(target=run)
     server.start()
 
+keep_alive()
 
 async def main():
-    if not TOKEN:
-        raise RuntimeError("TOKEN is missing from the environment.")
-
-    if ENABLE_KEEP_ALIVE:
-        keep_alive()
-
     async with client:
-        os.system("cls" if os.name == "nt" else "clear")
+        os.system("clear")
         await client.load_extension("jishaku")
         await client.start(TOKEN)
-
 
 if __name__ == "__main__":
     asyncio.run(main())

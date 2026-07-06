@@ -21,21 +21,15 @@ def RandomColor():
   return randcolor
 
 RAPIDAPI_HOST = "truth-dare.p.rapidapi.com"
-RAPIDAPI_KEY = os.getenv(
-    "RAPIDAPI_KEY",
-    "1cd7c71534msh2544b357ec07ad8p18fa0bjsn1358eef1f8e9",
-)
+RAPIDAPI_KEY = "1cd7c71534msh2544b357ec07ad8p18fa0bjsn1358eef1f8e9"
 
 class Fun(commands.Cog):
 
   def __init__(self, bot):
     self.bot = bot
-    self.giphy_token = os.getenv("GIPHY_TOKEN", 'y3KcqQTdiS0RYcpNJrWn8hFGglKqX4is')
-    self.google_api_key = os.getenv(
-        "GOOGLE_API_KEY",
-        'AIzaSyA022fwm_TOQcYTg1N_ohqqIj_RUFUM9BY',
-    )
-    self.search_engine_id = os.getenv("GOOGLE_SEARCH_ENGINE_ID", '2166875ec165a6c21') 
+    self.giphy_token = 'y3KcqQTdiS0RYcpNJrWn8hFGglKqX4is'
+    self.google_api_key = 'AIzaSyA022fwm_TOQcYTg1N_ohqqIj_RUFUM9BY'
+    self.search_engine_id = '2166875ec165a6c21' 
 
 
   async def download_avatar(self, url):
@@ -349,7 +343,7 @@ class Fun(commands.Cog):
           )
 
           embed.set_footer(
-            text=f'Made by India Server™',
+            text=f'Made by axon Development™',
             icon_url=self.bot.user.avatar
           )
 
@@ -369,7 +363,7 @@ class Fun(commands.Cog):
   @ignore_check()
   @commands.cooldown(1, 3, commands.BucketType.user)
   async def weather(self, ctx, *, city: str):
-      api_key = os.getenv("OPENWEATHER_API_KEY", "b81e2218c328686836ab6d9d31ce97d0")
+      api_key = "b81e2218c328686836ab6d9d31ce97d0"
       base_url = "http://api.openweathermap.org/data/2.5/weather?"
       city_name = city
       complete_url = f"{base_url}q={city_name}&APPID={api_key}"
@@ -676,5 +670,7 @@ class Fun(commands.Cog):
         await ctx.reply(f"⚠️ An error occurred: `{e}`")
     finally:
         await processing_message.delete()
+
+
 
 

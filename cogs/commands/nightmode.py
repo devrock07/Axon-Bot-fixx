@@ -13,10 +13,7 @@ class Nightmode(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
-        self.bot.create_background_task(
-            self.initialize_db(),
-            name="Nightmode.initialize_db",
-        )
+        self.bot.loop.create_task(self.initialize_db())
         self.ricky = ['767979794411028491',]
         self.color = 0x000000  
 

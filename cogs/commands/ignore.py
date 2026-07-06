@@ -11,7 +11,7 @@ class Ignore(commands.Cog):
     self.bot = bot
     self.db_path = "db/ignore.db"
     self.color = 0x000000
-    bot.create_background_task(self.initialize_db(), name="Ignore.initialize_db")
+    bot.loop.create_task(self.initialize_db())
 
   async def initialize_db(self):
     async with aiosqlite.connect(self.db_path) as db:
