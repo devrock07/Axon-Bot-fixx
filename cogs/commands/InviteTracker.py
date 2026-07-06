@@ -1,3 +1,4 @@
+import asyncio
 import discord
 from discord.ext import commands
 import sqlite3
@@ -8,7 +9,7 @@ DB_FILE = "db/invite_tracker.db"
 class InviteTracker(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.bot.loop.create_task(self.init_db())
+        asyncio.create_task(self.init_db())
         self.guild_invites = {}
 
     async def init_db(self):

@@ -1,3 +1,5 @@
+from utils import emojis
+
 import discord
 from discord.ext import commands
 
@@ -9,7 +11,7 @@ class _extra(commands.Cog):
     """Utility commands"""
   
     def help_custom(self):
-		      emoji = '<:Utility:1330393368894902272>'
+		      emoji = f'{emojis.UTILITY}'
 		      label = "Utility Commands"
 		      description = "Show you Commands of Utility"
 		      return emoji, label, description

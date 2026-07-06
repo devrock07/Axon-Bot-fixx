@@ -1,3 +1,5 @@
+from utils import emojis
+
 import discord
 from discord.ext import commands
 
@@ -9,7 +11,7 @@ class _ignore(commands.Cog):
     """Ignore commands"""
 
     def help_custom(self):
-              emoji = '<:ignore:1330398849101205524>'
+              emoji = f'{emojis.IGNORE}'
               label = "Ignore Commands"
               description = "Show you Commands of Ignore"
               return emoji, label, description

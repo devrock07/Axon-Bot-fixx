@@ -1,3 +1,6 @@
+from utils import emojis
+
+import asyncio
 import discord
 from discord.ext import commands
 from discord.ui import View, Button
@@ -7,7 +10,7 @@ from utils.Tools import *
 class Extraowner(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.bot.loop.create_task(self.initialize_db())
+        asyncio.create_task(self.initialize_db())
 
     async def initialize_db(self):
         self.db = await aiosqlite.connect('db/anti.db')
@@ -84,13 +87,13 @@ class Extraowner(commands.Cog):
             elif view.value:
                 await self.db.execute('INSERT OR REPLACE INTO extraowners (guild_id, owner_id) VALUES (?, ?)', (guild_id, user.id))
                 await self.db.commit()
-                embed = discord.Embed(title="<:tick:1327829594954530896> Success",
+                embed = discord.Embed(title=f"{emojis.TICK} Success",
                     description=f"Added {user.mention} As Extraowner",
                     color=0x000000
                 )
                 await message.edit(embed=embed, view=None)
             else:
-                await message.edit(content="<:CrossIcon:1327829124894429235> Action cancelled.", embed=None, view=None)
+                await message.edit(content=f"{emojis.CROSSICON} Action cancelled.", embed=None, view=None)
 
         
         elif option.lower() == 'reset':
@@ -98,7 +101,7 @@ class Extraowner(commands.Cog):
                 row = await cursor.fetchone()
 
             if not row:
-                embed = discord.Embed(title="<:CrossIcon:1327829124894429235> Error",
+                embed = discord.Embed(title=f"{emojis.CROSSICON} Error",
                     description="No extra owner has been designated for this guild.",
                     color=0x000000
                 )
@@ -119,20 +122,20 @@ class Extraowner(commands.Cog):
                 elif view.value:
                     await self.db.execute('DELETE FROM extraowners WHERE guild_id = ?', (guild_id,))
                     await self.db.commit()
-                    embed = discord.Embed(title="<:olympus_tick:1227866641027698792> Success",
+                    embed = discord.Embed(title=f"{emojis.OLYMPUS_TICK} Success",
                         description="Disabled Extraowner Configuration!",
                         color=0x000000
                     )
                     await message.edit(embed=embed, view=None)
                 else:
-                    await message.edit(content="<:CrossIcon:1327829124894429235> Action canceled.", embed=None, view=None)
+                    await message.edit(content=f"{emojis.CROSSICON} Action canceled.", embed=None, view=None)
 
         elif option.lower() == 'view':
             async with self.db.execute('SELECT owner_id FROM extraowners WHERE guild_id = ?', (guild_id,)) as cursor:
                 row = await cursor.fetchone()
 
             if not row:
-                embed = discord.Embed(title="<:CrossIcon:1327829124894429235> Error",
+                embed = discord.Embed(title=f"{emojis.CROSSICON} Error",
                     description="No extra owner is currently assigned.",
                     color=0x000000
                 )

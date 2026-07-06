@@ -1,3 +1,5 @@
+from utils import emojis
+
 import discord
 from discord.ext import commands
 from datetime import datetime
@@ -32,7 +34,7 @@ class SnipeView(discord.ui.View):
         )
 
         if snipe['content']:
-            embed.add_field(name="<:delete:1327842168693461022> **Content:**", value=snipe['content'])
+            embed.add_field(name=f"{emojis.DELETE} **Content:**", value=snipe['content'])
         if snipe['attachments']:
             attachment_links = "\n".join([f"[{attachment['name']}]({attachment['url']})" for attachment in snipe['attachments']])
             embed.add_field(name="**Attachments:**", value=attachment_links)
@@ -43,31 +45,31 @@ class SnipeView(discord.ui.View):
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         return interaction.user.id == self.user_id
 
-    @discord.ui.button(emoji="<:forward:1329361532999569439>", style=discord.ButtonStyle.secondary, custom_id="first")
+    @discord.ui.button(emoji=f"{emojis.FORWARD}", style=discord.ButtonStyle.secondary, custom_id="first")
     async def first_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         self.index = 0
         self.update_buttons()
         await self.send_snipe_embed(interaction)
 
-    @discord.ui.button(emoji="<:rewind1:1329360839874056225>", style=discord.ButtonStyle.secondary, custom_id="previous")
+    @discord.ui.button(emoji=f"{emojis.REWIND1}", style=discord.ButtonStyle.secondary, custom_id="previous")
     async def prev_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         if self.index > 0:
             self.index -= 1
         self.update_buttons()
         await self.send_snipe_embed(interaction)
 
-    @discord.ui.button(emoji="<:delete:1327842168693461022>", style=discord.ButtonStyle.danger, custom_id="delete")
+    @discord.ui.button(emoji=f"{emojis.DELETE}", style=discord.ButtonStyle.danger, custom_id="delete")
     async def delete_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.message.delete()
 
-    @discord.ui.button(emoji="<:forward:1329361532999569439>", style=discord.ButtonStyle.secondary, custom_id="next")
+    @discord.ui.button(emoji=f"{emojis.FORWARD}", style=discord.ButtonStyle.secondary, custom_id="next")
     async def next_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         if self.index < len(self.snipes) - 1:
             self.index += 1
         self.update_buttons()
         await self.send_snipe_embed(interaction)
 
-    @discord.ui.button(emoji="<:rewind1:1329360839874056225>", style=discord.ButtonStyle.secondary, custom_id="last")
+    @discord.ui.button(emoji=f"{emojis.REWIND1}", style=discord.ButtonStyle.secondary, custom_id="last")
     async def last_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         self.index = len(self.snipes) - 1
         self.update_buttons()
@@ -130,7 +132,7 @@ class Snipe(commands.Cog):
         )
 
         if first_snipe['content']:
-            embed.add_field(name="<:delete:1327842168693461022> **Content:**", value=first_snipe['content'])
+            embed.add_field(name=f"{emojis.DELETE} **Content:**", value=first_snipe['content'])
         if first_snipe['attachments']:
             attachment_links = "\n".join([f"[{attachment['name']}]({attachment['url']})" for attachment in first_snipe['attachments']])
             embed.add_field(name="**Attachments:**", value=attachment_links)

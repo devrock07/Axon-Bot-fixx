@@ -1,3 +1,5 @@
+from utils import emojis
+
 import discord
 from discord.ext import commands
 from discord import ui
@@ -31,7 +33,7 @@ class BanView(ui.View):
         modal = ReasonModal(user=self.user, author=self.author, view=self)
         await interaction.response.send_modal(modal)
 
-    @ui.button(style=discord.ButtonStyle.gray, emoji="<:delete:1327842168693461022>")
+    @ui.button(style=discord.ButtonStyle.gray, emoji=f"{emojis.DELETE}")
     async def delete(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.message.delete()
 
@@ -59,7 +61,7 @@ class AlreadyUnbannedView(ui.View):
         modal = ReasonModal(user=self.user, author=self.author, view=self)
         await interaction.response.send_modal(modal)
 
-    @ui.button(style=discord.ButtonStyle.gray, emoji="<:delete:1327842168693461022>")
+    @ui.button(style=discord.ButtonStyle.gray, emoji=f"{emojis.DELETE}")
     async def delete(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.message.delete()
 
@@ -75,7 +77,7 @@ class ReasonModal(ui.Modal):
     async def on_submit(self, interaction: discord.Interaction):
         reason = self.reason_input.value or "No reason provided"
         try:
-            await self.user.send(f"<:icons_warning:1327829522573430864> You have been Banned from **{self.author.guild.name}** by **{self.author}**. Reason: {reason or 'No reason provided'}")
+            await self.user.send(f"{emojis.ICONS_WARNING} You have been Banned from **{self.author.guild.name}** by **{self.author}**. Reason: {reason or 'No reason provided'}")
             dm_status = "Yes"
         except discord.Forbidden:
             dm_status = "No"
@@ -143,7 +145,7 @@ class Unban(commands.Cog):
             return
 
         try:
-            await user.send(f"<:tick:1327829594954530896> You have been unbanned from **{ctx.guild.name}** by **{ctx.author}**. Reason: {reason or 'No reason provided'}")
+            await user.send(f"{emojis.TICK} You have been unbanned from **{ctx.guild.name}** by **{ctx.author}**. Reason: {reason or 'No reason provided'}")
             dm_status = "Yes"
         except discord.Forbidden:
             dm_status = "No"

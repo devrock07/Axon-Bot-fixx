@@ -37,7 +37,7 @@ class Database:
             except aiosqlite.OperationalError as e:
                 if 'database is locked' in str(e).lower():
                     sleep_time = delay * (2 ** attempt) + random.uniform(0, 1)
-                    print(f"Database is locked. Retryng in {sleep_time:.2f} seconds.....")
+                    print(f"Database is locked. Retrying in {sleep_time:.2f} seconds.....")
                     await asyncio.sleep(sleep_time)
                 else:
                     raise

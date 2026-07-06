@@ -1,3 +1,5 @@
+from utils import emojis
+
 import discord
 from discord.ext import commands
 
@@ -9,7 +11,7 @@ class Loggingdrop(commands.Cog):
     """Logging commands"""
 
     def help_custom(self):
-              emoji = '<:logging:1392124867872165969>'
+              emoji = f'{emojis.LOGGING}'
               label = "Logging"
               description = "Advance Logging Command"
               return emoji, label, description

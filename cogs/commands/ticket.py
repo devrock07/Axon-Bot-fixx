@@ -1,3 +1,5 @@
+from utils import emojis
+
 import discord
 from discord.ext import commands
 from discord import app_commands
@@ -5,7 +7,7 @@ import asyncio
 import io
 from datetime import datetime
 
-EMOJI_DOT = "<a:BlueDot:1364125472539021352>"  # Replace with your emoji
+EMOJI_DOT = f"{emojis.BLUEDOT}"  # Replace with your emoji
 
 ticket_counter = 0
 

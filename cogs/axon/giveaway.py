@@ -1,3 +1,5 @@
+from utils import emojis
+
 import discord
 from discord.ext import commands
 
@@ -9,7 +11,7 @@ class _giveaway(commands.Cog):
     """Giveaway commands"""
   
     def help_custom(self):
-		      emoji = '<:giveaway:1330395924299644980>'
+		      emoji = f'{emojis.GIVEAWAY}'
 		      label = "Giveaway Commands"
 		      description = "Show you Commands of Giveaway"
 		      return emoji, label, description

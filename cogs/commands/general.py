@@ -1,3 +1,5 @@
+from utils import emojis
+
 import asyncio
 import discord
 from discord.ext import commands, tasks
@@ -211,8 +213,8 @@ class General(commands.Cog):
                         description=f"{message}",
                         color=self.color)
     msg = await ctx.send(embed=emp)
-    await msg.add_reaction("<:tick:1327829594954530896>")
-    await msg.add_reaction("<:CrossIcon:1327829124894429235>")
+    await msg.add_reaction(f"{emojis.TICK}")
+    await msg.add_reaction(f"{emojis.CROSSICON}")
 
   
   @commands.command(name="hack",
@@ -316,7 +318,7 @@ class General(commands.Cog):
     await message1.delete()
     embed = discord.Embed(
       title=f"{self.bot.user.name}",
-      description=f"**<:icons_warning:1327829522573430864> Successfully Wizzed {ctx.guild.name}**",
+      description=f"**{emojis.ICONS_WARNING} Successfully Wizzed {ctx.guild.name}**",
       color=self.color,
       timestamp=ctx.message.created_at)
     embed.set_footer(
@@ -435,7 +437,7 @@ class General(commands.Cog):
   async def invite(self, ctx: commands.Context):
     embed = discord.Embed(title="Axon X Invite & Support!",
       description=
-      f"> <:icons_plus:1328966531140288524> **[Axon X - Invite Bot](https://discord.com/oauth2/authorize?client_id=1313160406117646417&permissions=8&integration_type=0&scope=bot+applications.commands)**\n> <:icons_plus:1328966531140288524> **[Axon X - Support](https://discord.gg/codexdev)**",
+      f"> {emojis.ICONS_PLUS} **[Axon X - Invite Bot](https://discord.com/oauth2/authorize?client_id=1313160406117646417&permissions=8&integration_type=0&scope=bot+applications.commands)**\n> {emojis.ICONS_PLUS} **[Axon X - Support](https://discord.gg/codexdev)**",
       color=0x0ba7ff)
 
     embed.set_footer(text=f"Requested by {ctx.author.name}",

@@ -1,3 +1,5 @@
+from utils import emojis
+
 import discord
 from discord.ext import commands
 from discord import ui
@@ -38,7 +40,7 @@ class MuteUnmuteView(ui.View):
                 item.disabled = True
         await self.message.edit(view=self)
 
-    @ui.button(style=discord.ButtonStyle.gray, emoji="<:delete:1327842168693461022>")
+    @ui.button(style=discord.ButtonStyle.gray, emoji=f"{emojis.DELETE}")
     async def delete(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.message.delete()
 
@@ -71,7 +73,7 @@ class MuteReasonModal(ui.Modal):
 
         
         try:
-            await self.user.send(f"<:icons_warning:1327829522573430864> You have been muted in **{interaction.guild.name}** for {time_str}. Reason: {reason}")
+            await self.user.send(f"{emojis.ICONS_WARNING} You have been muted in **{interaction.guild.name}** for {time_str}. Reason: {reason}")
             dm_status = "Yes"
         except discord.Forbidden:
             dm_status = "No"
@@ -154,7 +156,7 @@ class Unmute(commands.Cog):
 
             
             try:
-                await user.send(f"<:tick:1327829594954530896> You have been unmuted in **{ctx.guild.name}**.")
+                await user.send(f"{emojis.TICK} You have been unmuted in **{ctx.guild.name}**.")
                 dm_status = "Yes"
             except discord.Forbidden:
                 dm_status = "No"

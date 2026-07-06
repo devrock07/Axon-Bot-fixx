@@ -1,3 +1,6 @@
+from utils import emojis
+
+import asyncio
 import discord
 import psutil
 import sys
@@ -17,7 +20,7 @@ class Stats(commands.Cog):
         self.bot = bot
         self.start_time = time.time()
         self.total_songs_played = 0
-        self.bot.loop.create_task(self.setup_database())
+        asyncio.create_task(self.setup_database())
 
     async def setup_database(self):
         os.makedirs("db", exist_ok=True)
@@ -74,7 +77,7 @@ class Stats(commands.Cog):
     @ignore_check()
     @commands.cooldown(1, 7, commands.BucketType.user)
     async def stats(self, ctx):
-        processing_message = await ctx.send("<a:Loading:1328740531907461233> Loading Axon X information...")
+        processing_message = await ctx.send(f"{emojis.LOADING} Loading Axon X information...")
         guild_count = len(self.bot.guilds)
         user_count = sum(g.member_count for g in self.bot.guilds if g.member_count is not None)
         bot_count = sum(sum(1 for m in g.members if m.bot) for g in self.bot.guilds)
@@ -97,12 +100,12 @@ class Stats(commands.Cog):
 
         embed = Embed(title="Quantum Statistics: General", color=0x000000)
         embed.add_field(name=" Channels", value=f"Total: **{channel_count}**\nText: **{text_channel_count}**   |   Voice: **{voice_channel_count}**   |   Category: **{category_channel_count}**", inline=False)
-        embed.add_field(name="<:icon_ping:1327829337461882913> Uptime", value=f"{uptime}", inline=False)
-        embed.add_field(name="<:user:1329379728603353108> User Count", value=f"Humans: **{human_count}**   |   Bots: **{bot_count}**", inline=False)
-        embed.add_field(name="<:file:1327842123906547713> Commands", value=f"Total: **{commands_count}**   |   Slash: **{slash_commands}**", inline=False)
-        embed.add_field(name="<:icons_channel:1327829380935843941> Libraries Used", value=f"Discord Library: **[discord.py](https://discordpy.readthedocs.io/en/stable/)**", inline=False)
-        embed.add_field(name="<:icons_discordbotdev:1327829391178338304> Codebase Stats", value=f"Total Python Files: **{total_files}**\nTotal Lines: **{total_lines}**\nTotal Words: **{total_words}**", inline=False)
-        embed.add_field(name="<:icons_music:1327829459729911900> Music Stats", value=f"Currently Connected: **{channels_connected}**\nCurrently Playing: **{playing_tracks}**\nTotal Songs Played: **{self.total_songs_played}**", inline=False)
+        embed.add_field(name=f"{emojis.ICON_PING} Uptime", value=f"{uptime}", inline=False)
+        embed.add_field(name=f"{emojis.USER} User Count", value=f"Humans: **{human_count}**   |   Bots: **{bot_count}**", inline=False)
+        embed.add_field(name=f"{emojis.FILE} Commands", value=f"Total: **{commands_count}**   |   Slash: **{slash_commands}**", inline=False)
+        embed.add_field(name=f"{emojis.ICONS_CHANNEL} Libraries Used", value=f"Discord Library: **[discord.py](https://discordpy.readthedocs.io/en/stable/)**", inline=False)
+        embed.add_field(name=f"{emojis.ICONS_DISCORDBOTDEV} Codebase Stats", value=f"Total Python Files: **{total_files}**\nTotal Lines: **{total_lines}**\nTotal Words: **{total_words}**", inline=False)
+        embed.add_field(name=f"{emojis.ICONS_MUSIC} Music Stats", value=f"Currently Connected: **{channels_connected}**\nCurrently Playing: **{playing_tracks}**\nTotal Songs Played: **{self.total_songs_played}**", inline=False)
         embed.set_footer(text="Powered by Quantum X Development™", icon_url=self.bot.user.display_avatar.url)
 
         view = View()
@@ -118,9 +121,9 @@ class Stats(commands.Cog):
         async def system_button_callback(interaction):
             if interaction.user == ctx.author:
                 system_embed = Embed(title="Quantum Statistics: System", color=0x000000)
-                system_embed.add_field(name="<:Commands:1329004882992300083> System Info", value=f"• Discord.py: **{discord.__version__}**\n• Python: **{platform.python_version()}**\n• Architecture: **{platform.machine()}**\n• Platform: **{platform.system()}**", inline=False)
-                system_embed.add_field(name="<:questions:1329005603669938236> Memory Info", value=f"• Total Memory: **{memory_info.total / (1024 ** 2):,.2f} MB**\n• Memory Left: **{memory_info.available / (1024 ** 2):,.2f} MB**\n• Heap Total: **{memory_info.used / (1024 ** 2):,.2f} MB**", inline=False)
-                system_embed.add_field(name="<:iconSetting:1327842140570779658> CPU Info", value=f"• CPU: **{psutil.cpu_freq().max}' GHz**\n• CPU Usage: **{psutil.cpu_percent()}%**\n• CPU Cores: **{psutil.cpu_count(logical=False)}**\n• CPU Speed: **{cpu_info.current:.2f} MHz**", inline=False)
+                system_embed.add_field(name=f"{emojis.COMMANDS} System Info", value=f"• Discord.py: **{discord.__version__}**\n• Python: **{platform.python_version()}**\n• Architecture: **{platform.machine()}**\n• Platform: **{platform.system()}**", inline=False)
+                system_embed.add_field(name=f"{emojis.QUESTIONS} Memory Info", value=f"• Total Memory: **{memory_info.total / (1024 ** 2):,.2f} MB**\n• Memory Left: **{memory_info.available / (1024 ** 2):,.2f} MB**\n• Heap Total: **{memory_info.used / (1024 ** 2):,.2f} MB**", inline=False)
+                system_embed.add_field(name=f"{emojis.ICONSETTING} CPU Info", value=f"• CPU: **{psutil.cpu_freq().max}' GHz**\n• CPU Usage: **{psutil.cpu_percent()}%**\n• CPU Cores: **{psutil.cpu_count(logical=False)}**\n• CPU Speed: **{cpu_info.current:.2f} MHz**", inline=False)
                 system_embed.set_footer(text="Powered by Quantum X Development™", icon_url=self.bot.user.display_avatar.url)
                 await interaction.response.edit_message(embed=system_embed, view=view)
         system_button.callback = system_button_callback

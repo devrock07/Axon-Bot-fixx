@@ -1,3 +1,7 @@
+from utils import emojis
+
+import json
+import os
 import random
 import discord
 from discord.ext import commands, tasks
@@ -15,8 +19,13 @@ import asyncio
 from utils.Tools import *
 track_histories = {}
 import base64
-import asyncio
 import re
+import logging
+from urllib.parse import urljoin
+
+import yaml
+
+log = logging.getLogger(__name__)
 
 SPOTIFY_TRACK_REGEX = r"https?://open\.spotify\.com/track/([a-zA-Z0-9]+)"
 SPOTIFY_PLAYLIST_REGEX = r"https?://open\.spotify\.com/playlist/([a-zA-Z0-9]+)"
@@ -97,6 +106,9 @@ class PlatformSelectView(View):
         return callback
 
     async def perform_search(self, source):
+        if self.ctx.cog and not await self.ctx.cog.ensure_lavalink(self.ctx):
+            return
+
         results = await wavelink.Playable.search(self.query, source=source)
         if not results:
             return await self.ctx.send(embed=discord.Embed(description="No results found.", color=0xFF0000))
@@ -166,7 +178,7 @@ class MusicControlView(View):
         )
         return False
 
-    @discord.ui.button(emoji="<:voice:1327841731651174450>", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(emoji=f"{emojis.VOICE}", style=discord.ButtonStyle.secondary)
     async def autoplay_button(self, interaction: discord.Interaction, button: Button):
         self.player.autoplay = (
             wavelink.AutoPlayMode.enabled if self.player.autoplay != wavelink.AutoPlayMode.enabled else wavelink.AutoPlayMode.disabled
@@ -174,7 +186,7 @@ class MusicControlView(View):
         await interaction.response.send_message(f"Autoplay {'enabled' if self.player.autoplay == wavelink.AutoPlayMode.enabled else 'disabled'} by **{interaction.user.display_name}**.")
 
 
-    @discord.ui.button(emoji="<:rewind1:1329360839874056225>", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(emoji=f"{emojis.REWIND1}", style=discord.ButtonStyle.secondary)
     async def previous_button(self, interaction: discord.Interaction, button: Button):
         guild_id = interaction.guild.id
 
@@ -194,23 +206,23 @@ class MusicControlView(View):
         else:
             await interaction.response.send_message("No previous track available.", ephemeral=True)
 
-    @discord.ui.button(emoji="<:musicstop_icons:1327829536053923934>", style=discord.ButtonStyle.success)
+    @discord.ui.button(emoji=f"{emojis.MUSICSTOP_ICONS}", style=discord.ButtonStyle.success)
     async def pause_button(self, interaction: discord.Interaction, button: Button):
         if self.player.paused:
             await self.player.pause(False)
 
-            await self.player.channel.edit(status=f"<:icons_pause:1327829480835780609> Playing: {self.player.current.title}")
-            button.emoji = "<:musicstop_icons:1327829536053923934>" 
+            await self.player.channel.edit(status=f"{emojis.ICONS_PAUSE} Playing: {self.player.current.title}")
+            button.emoji = f"{emojis.MUSICSTOP_ICONS}" 
             await interaction.response.edit_message(view=self)
 
         elif self.player.playing:
             await self.player.pause(True)
-            await self.player.channel.edit(status=f"<:icons_pause:1327829480835780609>  Paused: {self.player.current.title}")
-            button.emoji = "<:icons_next:1327829470027055184>"
+            await self.player.channel.edit(status=f"{emojis.ICONS_PAUSE}  Paused: {self.player.current.title}")
+            button.emoji = f"{emojis.ICONS_NEXT}"
             await interaction.response.edit_message(view=self)
 
 
-    @discord.ui.button(emoji="<:skip:1329359900563996754>", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(emoji=f"{emojis.SKIP}", style=discord.ButtonStyle.secondary)
     async def skip_button(self, interaction: discord.Interaction, button: Button):
         if self.player.autoplay == wavelink.AutoPlayMode.enabled:
             await self.player.stop()
@@ -224,13 +236,13 @@ class MusicControlView(View):
             await interaction.response.send_message("No song in queue to skip.", ephemeral=True)
 
 
-    @discord.ui.button(emoji="<:iconLoad:1327829324518391824>", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(emoji=f"{emojis.ICONLOAD}", style=discord.ButtonStyle.secondary)
     async def loop_button(self, interaction: discord.Interaction, button: Button):
         self.player.queue.mode = wavelink.QueueMode.loop if self.player.queue.mode != wavelink.QueueMode.loop else wavelink.QueueMode.normal
         await interaction.response.send_message(f"Loop {'enabled' if self.player.queue.mode == wavelink.QueueMode.loop else 'disabled'} by **{interaction.user.display_name}**.")
 
 
-    @discord.ui.button(emoji="<:shuffle:1329360518367936564>", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(emoji=f"{emojis.SHUFFLE}", style=discord.ButtonStyle.secondary)
     async def shuffle_button(self, interaction: discord.Interaction, button: Button):
         if self.player.queue:
             random.shuffle(self.player.queue)
@@ -239,7 +251,7 @@ class MusicControlView(View):
             await interaction.response.send_message("Queue is empty.", ephemeral=True)
 
 
-    @discord.ui.button(emoji="<:rewind1:1329360839874056225>", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(emoji=f"{emojis.REWIND1}", style=discord.ButtonStyle.secondary)
     async def rewind_button(self, interaction: discord.Interaction, button: Button):
         if self.player.playing:
             new_position = max(self.player.position - 10000, 0)
@@ -248,7 +260,7 @@ class MusicControlView(View):
         else:
             await interaction.response.send_message("No track is currently playing.", ephemeral=True)
 
-    @discord.ui.button(emoji="<:musicstop_icons:1327829536053923934>", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(emoji=f"{emojis.MUSICSTOP_ICONS}", style=discord.ButtonStyle.secondary)
     async def stop_button(self, interaction: discord.Interaction, button: Button):
         if self.player:
             voice_channel = self.player.channel
@@ -260,7 +272,7 @@ class MusicControlView(View):
         else:
             await interaction.response.send_message("Not connected.", ephemeral=True)
 
-    @discord.ui.button(emoji="<:forward:1329361532999569439>", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(emoji=f"{emojis.FORWARD}", style=discord.ButtonStyle.secondary)
     async def forward_button(self, interaction: discord.Interaction, button: Button):
         if self.player.playing:
             new_position = min(self.player.position + 10000, self.player.current.length)
@@ -269,7 +281,7 @@ class MusicControlView(View):
         else:
             await interaction.response.send_message("No track is currently playing.", ephemeral=True)
 
-    @discord.ui.button(emoji="<:icons_music:1327829459729911900>", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(emoji=f"{emojis.ICONS_MUSIC}", style=discord.ButtonStyle.secondary)
     async def replay_button(self, interaction: discord.Interaction, button: Button):
         if self.player.playing:
             await self.player.seek(0)
@@ -282,13 +294,132 @@ class MusicControlView(View):
 class Music(commands.Cog):
     def __init__(self, client: axon):
         self.client = client
-        self.client.loop.create_task(self.connect_nodes())
-        self.client.loop.create_task(self.monitor_inactivity())
+        self.lavalink_connected = False
+        self.lavalink_nodes = self._load_lavalink_nodes()
+        asyncio.create_task(self.connect_nodes())
+        asyncio.create_task(self.monitor_inactivity())
         
         self.inactivity_timeout = 120 
         self.player_inactivity = {}  
 
+    def _env_bool(self, name: str, default: bool) -> bool:
+        value = os.getenv(name)
+        if value is None:
+            return default
+        return value.strip().lower() in {"1", "true", "yes", "on"}
+
+    def _load_lavalink_nodes(self) -> list[dict]:
+        config: dict = {}
+        if os.path.exists("config.yml"):
+            try:
+                with open("config.yml", "r", encoding="utf-8") as fp:
+                    config = yaml.safe_load(fp) or {}
+            except OSError:
+                log.warning("Could not read config.yml for Lavalink settings.")
+
+        lavalink_config = config.get("LAVALINK", {}) or {}
+        if not self._env_bool("LAVALINK_ENABLED", bool(lavalink_config.get("ENABLED", True))):
+            return []
+
+        raw_nodes = os.getenv("LAVALINK_NODES_JSON") or os.getenv("LAVALINK_NODES")
+        if raw_nodes:
+            try:
+                parsed = json.loads(raw_nodes)
+                if isinstance(parsed, dict):
+                    parsed = [parsed]
+                if isinstance(parsed, list):
+                    return [node for node in parsed if isinstance(node, dict)]
+            except json.JSONDecodeError:
+                log.warning("LAVALINK_NODES_JSON is not valid JSON; falling back to simple Lavalink env vars.")
+
+        uri = os.getenv("LAVALINK_URI") or lavalink_config.get("URI")
+        password = os.getenv("LAVALINK_PASSWORD") or lavalink_config.get("PASSWORD")
+        if uri and password:
+            return [
+                {
+                    "identifier": os.getenv("LAVALINK_IDENTIFIER") or lavalink_config.get("IDENTIFIER") or "main",
+                    "uri": uri,
+                    "password": password,
+                    "heartbeat": float(os.getenv("LAVALINK_HEARTBEAT") or lavalink_config.get("HEARTBEAT", 15.0)),
+                    "retries": int(os.getenv("LAVALINK_RETRIES") or lavalink_config.get("RETRIES", 3)),
+                }
+            ]
+
+        config_nodes = lavalink_config.get("NODES", []) or []
+        return [node for node in config_nodes if isinstance(node, dict)]
+
+    async def _preflight_lavalink_node(self, node_config: dict) -> bool:
+        uri = str(node_config.get("uri") or node_config.get("URI") or "").strip()
+        password = str(node_config.get("password") or node_config.get("PASSWORD") or "").strip()
+        identifier = str(node_config.get("identifier") or node_config.get("IDENTIFIER") or uri or "main")
+
+        if not uri or not password:
+            log.warning("Skipped Lavalink node %s: missing URI or password.", identifier)
+            return False
+
+        if not self._env_bool("LAVALINK_PRECHECK", True):
+            return True
+
+        info_url = urljoin(uri.rstrip("/") + "/", "v4/info")
+        headers = {"Authorization": password}
+        timeout = aiohttp.ClientTimeout(total=float(os.getenv("LAVALINK_PRECHECK_TIMEOUT", "8")))
+
+        try:
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.get(info_url, headers=headers) as response:
+                    content_type = response.headers.get("content-type", "")
+                    if response.status != 200 or "json" not in content_type.lower():
+                        log.warning(
+                            "Skipped Lavalink node %s: %s returned HTTP %s with content-type %s.",
+                            identifier,
+                            info_url,
+                            response.status,
+                            content_type or "unknown",
+                        )
+                        return False
+                    await response.json()
+                    return True
+        except Exception as exc:
+            log.warning("Skipped Lavalink node %s: precheck failed for %s (%s).", identifier, info_url, exc)
+            return False
+
+    def _make_lavalink_node(self, node_config: dict) -> wavelink.Node:
+        return wavelink.Node(
+            identifier=str(node_config.get("identifier") or node_config.get("IDENTIFIER") or "main"),
+            uri=str(node_config.get("uri") or node_config.get("URI")).rstrip("/") + "/",
+            password=str(node_config.get("password") or node_config.get("PASSWORD")),
+            heartbeat=float(node_config.get("heartbeat") or node_config.get("HEARTBEAT") or 15.0),
+            retries=int(node_config.get("retries") or node_config.get("RETRIES") or 3),
+        )
+
+    def is_lavalink_available(self) -> bool:
+        if self.lavalink_connected:
+            return True
+        try:
+            wavelink.Pool.get_node()
+            return True
+        except Exception:
+            return False
+
+    async def ensure_lavalink(self, ctx: commands.Context) -> bool:
+        if self.is_lavalink_available():
+            return True
+
+        await ctx.send(
+            embed=discord.Embed(
+                description=(
+                    f"{emojis.ICONS_WARNING} Music is not connected to Lavalink. "
+                    "Set `LAVALINK_URI` and `LAVALINK_PASSWORD` in `.env`, then restart the bot."
+                )
+            )
+        )
+        return False
+
     async def monitor_inactivity(self):
+        try:
+            await self.client.wait_until_ready()
+        except RuntimeError:
+            return
         while True:
             for guild in self.client.guilds:
                 await self.check_inactivity(guild.id) 
@@ -336,8 +467,31 @@ class Music(commands.Cog):
                     pass
 
     async def connect_nodes(self) -> None:
-        nodes = [wavelink.Node(uri="https://lava-v4.ajieblogs.eu.org:443/", password="https://dsc.gg/ajidevserver")]
-        await wavelink.Pool.connect(nodes=nodes, client=self.client, cache_capacity=None)
+        try:
+            await self.client.wait_until_ready()
+        except RuntimeError:
+            return
+
+        if not self.lavalink_nodes:
+            log.warning("Lavalink is not configured. Set LAVALINK_URI and LAVALINK_PASSWORD in .env to enable music.")
+            return
+
+        nodes: list[wavelink.Node] = []
+        for node_config in self.lavalink_nodes:
+            if await self._preflight_lavalink_node(node_config):
+                nodes.append(self._make_lavalink_node(node_config))
+
+        if not nodes:
+            log.warning("No Lavalink nodes passed precheck. Music commands will stay disabled.")
+            return
+
+        try:
+            connected = await wavelink.Pool.connect(nodes=nodes, client=self.client, cache_capacity=None)
+            self.lavalink_connected = bool(connected)
+            log.info("Connected Lavalink nodes: %s", ", ".join(connected.keys()) or "none")
+        except Exception as exc:
+            self.lavalink_connected = False
+            log.warning("Failed to connect to Lavalink node(s): %s", exc)
 
 
 
@@ -379,7 +533,7 @@ class Music(commands.Cog):
             #embed.set_author(name="Now Playing", icon_url="https://cdn.discordapp.com/emojis/1275556609958875218.gif")
             embed.add_field(name="Author", value=f"`{track.author}`")
             embed.add_field(name="Duration", value=f"`{duration}`")
-            embed.add_field(name="Source", value=f"[<:youtube:1329365996959567893>  Listen on Spotify]({track.uri})" if "spotify" in track.source else f"[<:jiosaavn:1306976886047375430> Listen on JioSaavn]({track.uri})" if "jiosaavn" in track.source else f"[<:SoundCloud:1307002774738829413> Listen on SoundCloud]({track.uri})" if "soundcloud" in track.source else f"[<:YouTube:1344680847315570841> Listen on YouTube]({track.uri})")
+            embed.add_field(name="Source", value=f"[{emojis.YOUTUBE}  Listen on Spotify]({track.uri})" if "spotify" in track.source else f"[{emojis.JIOSAAVN} Listen on JioSaavn]({track.uri})" if "jiosaavn" in track.source else f"[{emojis.SOUNDCLOUD} Listen on SoundCloud]({track.uri})" if "soundcloud" in track.source else f"[{emojis.YOUTUBE} Listen on YouTube]({track.uri})")
             embed.set_image(url="attachment://player.png")
             embed.set_footer(text="Requested by " + (ctx.author.display_name if not autoplay else f"{ctx.author.display_name} (Autoplay Mode)"), icon_url=ctx.author.avatar.url if ctx.author.avatar else ctx.author.default_avatar.url)
 
@@ -426,8 +580,11 @@ class Music(commands.Cog):
 
 
     async def play_source(self, ctx, query):
+        if not await self.ensure_lavalink(ctx):
+            return
+
         if not ctx.author.voice:
-            await ctx.send(embed=discord.Embed(description="<:icons_warning:1327829522573430864> you need to be in a voice channel to use this command.", color=0x000000))
+            await ctx.send(embed=discord.Embed(description=f"{emojis.ICONS_WARNING} you need to be in a voice channel to use this command.", color=0x000000))
             return
 
         vc = ctx.voice_client or await ctx.author.voice.channel.connect(cls=wavelink.Player)
@@ -456,7 +613,7 @@ class Music(commands.Cog):
 
         if isinstance(tracks, wavelink.Playlist):
             await vc.queue.put_wait(tracks.tracks)
-            await ctx.send(embed=discord.Embed(description=f"<:icons_plus:1328966531140288524> Added playlist [{tracks.name}](https://discord.gg/mZBtu84xGH) with **{len(tracks.tracks)} songs** to the queue.", color=0x000000))
+            await ctx.send(embed=discord.Embed(description=f"{emojis.ICONS_PLUS} Added playlist [{tracks.name}](https://discord.gg/mZBtu84xGH) with **{len(tracks.tracks)} songs** to the queue.", color=0x000000))
             if not vc.playing:
                 track = await vc.queue.get_wait()
                 await vc.play(track)
@@ -464,11 +621,11 @@ class Music(commands.Cog):
         else:
             track = tracks[0]
             await vc.queue.put_wait(track)
-            await ctx.send(embed=discord.Embed(description=f"<:icons_plus:1328966531140288524>  Added [{track.title}](https://discord.gg/mZBtu84xGH) to the queue.", color=0x000000))
+            await ctx.send(embed=discord.Embed(description=f"{emojis.ICONS_PLUS}  Added [{track.title}](https://discord.gg/mZBtu84xGH) to the queue.", color=0x000000))
             if not vc.playing:
                 await vc.play(await vc.queue.get_wait())
                 await self.display_player_embed(vc, track, ctx)
-            self.client.loop.create_task(self.check_inactivity(ctx.guild.id))
+            asyncio.create_task(self.check_inactivity(ctx.guild.id))
            # await interaction.response.defer()
 
 
@@ -493,7 +650,7 @@ class Music(commands.Cog):
 
                 track = search_results[0]
                 await vc.queue.put_wait(track)
-                await ctx.send(embed=discord.Embed(description=f"<:icons_plus:1328966531140288524> Added [{track.title}](https://discord.gg/mZBtu84xGH) to the queue.", color=0x000000))
+                await ctx.send(embed=discord.Embed(description=f"{emojis.ICONS_PLUS} Added [{track.title}](https://discord.gg/mZBtu84xGH) to the queue.", color=0x000000))
                 if not vc.playing:
                     await vc.play(track)
                     await self.display_player_embed(vc, track, ctx)
@@ -524,7 +681,7 @@ class Music(commands.Cog):
                         c += 1
                         await ctx.message.add_reaction("✅")
 
-                await ctx.send(embed=discord.Embed(description=f"<:icons_plus:1328966531140288524> Added **{c}** of **{playlist_length}** tracks from **playlist** **[{playlist_info['name']}](https://discord.gg/mZBtu84xGH)** to the queue.", color=0x000000))
+                await ctx.send(embed=discord.Embed(description=f"{emojis.ICONS_PLUS} Added **{c}** of **{playlist_length}** tracks from **playlist** **[{playlist_info['name']}](https://discord.gg/mZBtu84xGH)** to the queue.", color=0x000000))
                 await lmao.delete()
                 
                 if not vc.playing:
@@ -552,7 +709,7 @@ class Music(commands.Cog):
                     if track_results:
                         await vc.queue.put_wait(track_results[0])
 
-                await ctx.send(embed=discord.Embed(description=f"<:icons_plus:1328966531140288524> Added all tracks from album **[{album_info['name']}](https://discord.gg/mZBtu84xGH)** to the queue.", color=0x000000))
+                await ctx.send(embed=discord.Embed(description=f"{emojis.ICONS_PLUS} Added all tracks from album **[{album_info['name']}](https://discord.gg/mZBtu84xGH)** to the queue.", color=0x000000))
                 if not vc.playing:
                     next_track = await vc.queue.get_wait()
                     await vc.play(next_track)
@@ -583,8 +740,11 @@ class Music(commands.Cog):
     @ignore_check()
     @commands.cooldown(1, 3, commands.BucketType.user)
     async def search2(self, ctx: commands.Context, *, query: str):
+        if not await self.ensure_lavalink(ctx):
+            return
+
         if not ctx.author.voice:
-            await ctx.send(embed=discord.Embed(description="<:icons_warning:1327829522573430864> You need to be in a voice channel to use this command.", color=0x000000))
+            await ctx.send(embed=discord.Embed(description=f"{emojis.ICONS_WARNING} You need to be in a voice channel to use this command.", color=0x000000))
             return
 
         embed = discord.Embed(
@@ -655,18 +815,18 @@ class Music(commands.Cog):
     async def autoplay(self, ctx: commands.Context):
         vc = ctx.voice_client
         if not vc or not vc.playing:
-            await ctx.send(embed=discord.Embed(description="<:icons_warning:1327829522573430864> No song is currently playing.", color=0x000000))
+            await ctx.send(embed=discord.Embed(description=f"{emojis.ICONS_WARNING} No song is currently playing.", color=0x000000))
             return
 
         if not ctx.author.voice or ctx.author.voice.channel.id != vc.channel.id:
-            await ctx.send(embed=discord.Embed(description="<:icons_warning:1327829522573430864> You need to be in the same voice channel as me to use this command.", color=0xFF0000))
+            await ctx.send(embed=discord.Embed(description=f"{emojis.ICONS_WARNING} You need to be in the same voice channel as me to use this command.", color=0xFF0000))
             return
 
         if vc:
             vc.autoplay = (
                 wavelink.AutoPlayMode.enabled if vc.autoplay != wavelink.AutoPlayMode.enabled else wavelink.AutoPlayMode.disabled
             )
-            await ctx.send(embed=discord.Embed(description=f"<:tick:1327829594954530896> Autoplay {'enabled' if vc.autoplay == wavelink.AutoPlayMode.enabled else 'disabled'} by {ctx.author.mention}.", color=0x000000))
+            await ctx.send(embed=discord.Embed(description=f"{emojis.TICK} Autoplay {'enabled' if vc.autoplay == wavelink.AutoPlayMode.enabled else 'disabled'} by {ctx.author.mention}.", color=0x000000))
 
     @commands.hybrid_command(name="loop", usage="loop", help="Toggles loop mode.")
     @blacklist_check()
@@ -675,16 +835,16 @@ class Music(commands.Cog):
     async def loop(self, ctx: commands.Context):
         vc = ctx.voice_client
         if not vc or not vc.playing:
-            await ctx.send(embed=discord.Embed(description="<:icons_warning:1327829522573430864> No song is currently playing.", color=0x000000))
+            await ctx.send(embed=discord.Embed(description=f"{emojis.ICONS_WARNING} No song is currently playing.", color=0x000000))
             return
 
         if not ctx.author.voice or ctx.author.voice.channel.id != vc.channel.id:
-            await ctx.send(embed=discord.Embed(description="<:icons_warning:1327829522573430864> You need to be in the same voice channel as me to use this command.", color=0xFF0000))
+            await ctx.send(embed=discord.Embed(description=f"{emojis.ICONS_WARNING} You need to be in the same voice channel as me to use this command.", color=0xFF0000))
             return
 
         if vc:
             vc.queue.mode = wavelink.QueueMode.loop if vc.queue.mode != wavelink.QueueMode.loop else wavelink.QueueMode.normal
-            await ctx.send(embed=discord.Embed(description=f"<:tick:1327829594954530896> Loop {'enabled' if vc.queue.mode == wavelink.QueueMode.loop else 'disabled'} by {ctx.author.mention}.", color=0x000000))
+            await ctx.send(embed=discord.Embed(description=f"{emojis.TICK} Loop {'enabled' if vc.queue.mode == wavelink.QueueMode.loop else 'disabled'} by {ctx.author.mention}.", color=0x000000))
         else:
             await ctx.send(embed=discord.Embed(description="I'm not connected to a voice channel.", color=0xFF0000))
 
@@ -696,19 +856,19 @@ class Music(commands.Cog):
     async def pause(self, ctx: commands.Context):
         vc = ctx.voice_client
         if not vc or not vc.playing:
-            await ctx.send(embed=discord.Embed(description="<:icons_warning:1327829522573430864> No song is currently playing.", color=0x000000))
+            await ctx.send(embed=discord.Embed(description=f"{emojis.ICONS_WARNING} No song is currently playing.", color=0x000000))
             return
 
         if not ctx.author.voice or ctx.author.voice.channel.id != vc.channel.id:
-            await ctx.send(embed=discord.Embed(description="<:icons_warning:1327829522573430864> You need to be in the same voice channel as me to use this command.", color=0xFF0000))
+            await ctx.send(embed=discord.Embed(description=f"{emojis.ICONS_WARNING} You need to be in the same voice channel as me to use this command.", color=0xFF0000))
             return
 
         if vc and vc.playing and not vc.paused:
             await vc.pause(True)
-            await vc.channel.edit(status=f"<:musicstop_icons:1327829536053923934> Paused: {vc.current.title}")
+            await vc.channel.edit(status=f"{emojis.MUSICSTOP_ICONS} Paused: {vc.current.title}")
             await ctx.send(embed=discord.Embed(description=f"Paused by {ctx.author.mention}.", color=0x000000))
         else:
-            await ctx.send(embed=discord.Embed(description="<:icons_warning:1327829522573430864>   Nothing is playing or already paused.", color=0xFF0000))
+            await ctx.send(embed=discord.Embed(description=f"{emojis.ICONS_WARNING}   Nothing is playing or already paused.", color=0xFF0000))
 
     @commands.hybrid_command(name="resume", usage="resume", help="Resumes the paused song.")
     @blacklist_check()
@@ -717,16 +877,16 @@ class Music(commands.Cog):
     async def resume(self, ctx: commands.Context):
         vc = ctx.voice_client
         if not vc or not vc.playing:
-            await ctx.send(embed=discord.Embed(description="<:icons_warning:1327829522573430864> No song is currently playing.", color=0x000000))
+            await ctx.send(embed=discord.Embed(description=f"{emojis.ICONS_WARNING} No song is currently playing.", color=0x000000))
             return
 
         if not ctx.author.voice or ctx.author.voice.channel.id != vc.channel.id:
-            await ctx.send(embed=discord.Embed(description="<:icons_warning:1327829522573430864> You need to be in the same voice channel as me to use this command.", color=0xFF0000))
+            await ctx.send(embed=discord.Embed(description=f"{emojis.ICONS_WARNING} You need to be in the same voice channel as me to use this command.", color=0xFF0000))
             return
 
         if vc and vc.paused:
             await vc.pause(False)
-            await vc.channel.edit(status=f"<a:music:1332620358255116319> Playing: {vc.current.title}")
+            await vc.channel.edit(status=f"{emojis.MUSIC} Playing: {vc.current.title}")
             await ctx.send(embed=discord.Embed(description=f"Resumed by {ctx.author.mention}.", color=0x000000))
         else:
             await ctx.send(embed=discord.Embed(description="Player is not paused.", color=0xFF0000))
@@ -742,7 +902,7 @@ class Music(commands.Cog):
             return
 
         if not ctx.author.voice or ctx.author.voice.channel.id != vc.channel.id:
-            await ctx.send(embed=discord.Embed(description="<:icons_warning:1327829522573430864> You need to be in the same voice channel as me to use this command.", color=0xFF0000))
+            await ctx.send(embed=discord.Embed(description=f"{emojis.ICONS_WARNING} You need to be in the same voice channel as me to use this command.", color=0xFF0000))
             return
 
         if vc.autoplay == wavelink.AutoPlayMode.enabled:
@@ -754,7 +914,7 @@ class Music(commands.Cog):
             await vc.stop()
             await ctx.send(embed=discord.Embed(description=f"Skipped by {ctx.author.mention}.", color=0x000000))
         else:
-            await ctx.send(embed=discord.Embed(description="<:icons_warning:1327829522573430864> No song is playing or in the queue to skip.", color=0xFF0000))
+            await ctx.send(embed=discord.Embed(description=f"{emojis.ICONS_WARNING} No song is playing or in the queue to skip.", color=0xFF0000))
 
     @commands.hybrid_command(name="shuffle", usage="shuffle", help="Shuffles the queue.")
     @blacklist_check()
@@ -763,11 +923,11 @@ class Music(commands.Cog):
     async def shuffle(self, ctx: commands.Context):
         vc = ctx.voice_client
         if not vc or not vc.playing:
-            await ctx.send(embed=discord.Embed(description="<:icons_warning:1327829522573430864>  No song is currently playing.", color=0x000000))
+            await ctx.send(embed=discord.Embed(description=f"{emojis.ICONS_WARNING}  No song is currently playing.", color=0x000000))
             return
 
         if not ctx.author.voice or ctx.author.voice.channel.id != vc.channel.id:
-            await ctx.send(embed=discord.Embed(description="<:icons_warning:1327829522573430864> You need to be in the same voice channel as me to use this command.", color=0xFF0000))
+            await ctx.send(embed=discord.Embed(description=f"{emojis.ICONS_WARNING} You need to be in the same voice channel as me to use this command.", color=0xFF0000))
             return
 
         if vc and vc.queue:
@@ -784,11 +944,11 @@ class Music(commands.Cog):
         player: wavelink.Player = cast(wavelink.Player, ctx.voice_client)
         vc = ctx.voice_client
         if not vc or not vc.playing:
-            await ctx.send(embed=discord.Embed(description="<:icons_warning:1327829522573430864> No song is currently playing.", color=0x000000))
+            await ctx.send(embed=discord.Embed(description=f"{emojis.ICONS_WARNING} No song is currently playing.", color=0x000000))
             return
 
         if not ctx.author.voice or ctx.author.voice.channel.id != vc.channel.id:
-            await ctx.send(embed=discord.Embed(description="<:icons_warning:1327829522573430864>  You need to be in the same voice channel as me to use this command.", color=0xFF0000))
+            await ctx.send(embed=discord.Embed(description=f"{emojis.ICONS_WARNING}  You need to be in the same voice channel as me to use this command.", color=0xFF0000))
             return
 
         if vc and player:
@@ -807,19 +967,19 @@ class Music(commands.Cog):
         vc = ctx.voice_client
 
         if not vc:
-            await ctx.send(embed=discord.Embed(description="<:icons_warning:1327829522573430864> I'm not connected to a voice channel.", color=0xFF0000))
+            await ctx.send(embed=discord.Embed(description=f"{emojis.ICONS_WARNING} I'm not connected to a voice channel.", color=0xFF0000))
             return
 
         if not ctx.author.voice or ctx.author.voice.channel.id != vc.channel.id:
-            await ctx.send(embed=discord.Embed(description="<:icons_warning:1327829522573430864> You need to be in the same voice channel as me to use this command.", color=0xFF0000))
+            await ctx.send(embed=discord.Embed(description=f"{emojis.ICONS_WARNING} You need to be in the same voice channel as me to use this command.", color=0xFF0000))
             return
 
         if vc:
             if 1 <= level <= 150:
                 await vc.set_volume(level)
-                await ctx.send(embed=discord.Embed(description=f"<:voice:1327841731651174450> Volume set to {level}% by {ctx.author.mention}.", color=0x000000))
+                await ctx.send(embed=discord.Embed(description=f"{emojis.VOICE} Volume set to {level}% by {ctx.author.mention}.", color=0x000000))
             else:
-                await ctx.send(embed=discord.Embed(description="<:icons_warning:1327829522573430864> Volume must be between 1 and 150.", color=0xFF0000))
+                await ctx.send(embed=discord.Embed(description=f"{emojis.ICONS_WARNING} Volume must be between 1 and 150.", color=0xFF0000))
         else:
             await ctx.send(embed=discord.Embed(description="Bot is not connected to a voice channel.", color=0xFF0000))
 
@@ -831,11 +991,11 @@ class Music(commands.Cog):
         vc = ctx.voice_client
 
         if not vc or not vc.queue or vc.queue.is_empty:
-            await ctx.send(embed=discord.Embed(description="<:icons_warning:1327829522573430864>  The queue is currently empty.", color=0x000000))
+            await ctx.send(embed=discord.Embed(description=f"{emojis.ICONS_WARNING}  The queue is currently empty.", color=0x000000))
             return
 
         if not ctx.author.voice or ctx.author.voice.channel.id != vc.channel.id:
-            await ctx.send(embed=discord.Embed(description="<:icons_warning:1327829522573430864> you need to be in the same voice channel as me to use this command.", color=0xFF0000))
+            await ctx.send(embed=discord.Embed(description=f"{emojis.ICONS_WARNING} you need to be in the same voice channel as me to use this command.", color=0xFF0000))
             return
 
 
@@ -857,11 +1017,11 @@ class Music(commands.Cog):
         vc = ctx.voice_client
 
         if not vc or not vc.queue or vc.queue.is_empty:
-            await ctx.send(embed=discord.Embed(description="<:icons_warning:1327829522573430864>  No Queue to clear.", color=0xFF0000))
+            await ctx.send(embed=discord.Embed(description=f"{emojis.ICONS_WARNING}  No Queue to clear.", color=0xFF0000))
             return
 
         if not ctx.author.voice or ctx.author.voice.channel.id != vc.channel.id:
-            await ctx.send(embed=discord.Embed(description="<:icons_warning:1327829522573430864>  You need to be in the same voice channel as me to use this command.", color=0xFF0000))
+            await ctx.send(embed=discord.Embed(description=f"{emojis.ICONS_WARNING}  You need to be in the same voice channel as me to use this command.", color=0xFF0000))
             return
 
         if vc and vc.queue:
@@ -878,11 +1038,11 @@ class Music(commands.Cog):
         vc = ctx.voice_client
 
         if not vc or not vc.playing:
-            await ctx.send(embed=discord.Embed(description="<:icons_warning:1327829522573430864>  I'm not connected to any voice channel.", color=0xFF0000))
+            await ctx.send(embed=discord.Embed(description=f"{emojis.ICONS_WARNING}  I'm not connected to any voice channel.", color=0xFF0000))
             return
 
         if not ctx.author.voice or ctx.author.voice.channel.id != vc.channel.id:
-            await ctx.send(embed=discord.Embed(description="<:icons_warning:1327829522573430864>  You need to be in the same voice channel as me to use this command.", color=0xFF0000))
+            await ctx.send(embed=discord.Embed(description=f"{emojis.ICONS_WARNING}  You need to be in the same voice channel as me to use this command.", color=0xFF0000))
             return
 
         if vc and vc.playing:
@@ -896,6 +1056,9 @@ class Music(commands.Cog):
     @ignore_check()
     @commands.cooldown(1, 3, commands.BucketType.user)
     async def join(self, ctx: commands.Context):
+        if not await self.ensure_lavalink(ctx):
+            return
+
         if ctx.author.voice:
             await ctx.author.voice.channel.connect(cls=wavelink.Player)
             await ctx.send(embed=discord.Embed(description="Joined the voice channel.", color=0x1DB954))
@@ -909,11 +1072,11 @@ class Music(commands.Cog):
     async def disconnect(self, ctx: commands.Context):
         vc = ctx.voice_client
         if not vc:
-            await ctx.send(embed=discord.Embed(description="<:icons_warning:1327829522573430864>  I'm not connected to any voice channel.", color=0xFF0000))
+            await ctx.send(embed=discord.Embed(description=f"{emojis.ICONS_WARNING}  I'm not connected to any voice channel.", color=0xFF0000))
             return
 
         if not ctx.author.voice or ctx.author.voice.channel.id != vc.channel.id:
-            await ctx.send(embed=discord.Embed(description="<:icons_warning:1327829522573430864>  You need to be in the same voice channel as me to use this command.", color=0xFF0000))
+            await ctx.send(embed=discord.Embed(description=f"{emojis.ICONS_WARNING}  You need to be in the same voice channel as me to use this command.", color=0xFF0000))
             return
 
         if vc:
@@ -954,7 +1117,7 @@ class Music(commands.Cog):
 
         voice_channel = player.channel
         if voice_channel:
-            await voice_channel.edit(status=f"<a:music:1332620358255116319> Playing: {track.title}")  # type: ignore
+            await voice_channel.edit(status=f"{emojis.MUSIC} Playing: {track.title}")  # type: ignore
 
         if guild_id not in track_histories:
             track_histories[guild_id] = []

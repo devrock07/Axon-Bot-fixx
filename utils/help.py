@@ -1,150 +1,227 @@
+from __future__ import annotations
+
+from typing import Optional
+
 import discord
-import functools
-from utils.Tools import *
+from discord.ext import commands
+
+from utils import emojis
+from utils.components_v2 import action_row, container, separator, text
 
 
-class Dropdown(discord.ui.Select):
+MAX_PAGE_CHARS = 3600
 
-    def __init__(self, ctx, options):
-        super().__init__(placeholder="Choose a Category for Help",
-                         min_values=1,
-                         max_values=1,
-                         options=options)
+
+class HelpDropdown(discord.ui.Select):
+    def __init__(self, ctx: commands.Context, options: list[discord.SelectOption]):
+        super().__init__(
+            placeholder="Choose a Category for Help",
+            min_values=1,
+            max_values=1,
+            options=options,
+            custom_id=f"help:v2:select:{ctx.author.id}",
+        )
         self.invoker = ctx.author
 
     async def callback(self, interaction: discord.Interaction):
-        if self.invoker == interaction.user:
-            index = self.view.find_index_from_select(self.values[0])
-            if not index:
-                index = 0
-            await self.view.set_page(index, interaction)
-        else:
-            await interaction.response.send_message(
-                "You must run this command to interact with it.", ephemeral=True)
+        if interaction.user != self.invoker:
+            await interaction.response.send_message("You must run this command to interact with it.", ephemeral=True)
+            return
+
+        index = self.view.find_index_from_select(self.values[0])  # type: ignore[union-attr]
+        await self.view.set_page(index or 0, interaction)  # type: ignore[union-attr]
 
 
-class Button(discord.ui.Button):
-
-    def __init__(self, command, ctx, label, style: discord.ButtonStyle, emoji=None, args=None):
-        disable = False
-        if args == -1 or args == 0:
-            disable = True
-        super().__init__(label=label, style=style, emoji=emoji, disabled=disable)
-        self.command = command
-        self.invoker = ctx.author
-        self.args = args
+class HelpButton(discord.ui.Button):
+    def __init__(
+        self,
+        *,
+        invoker: discord.abc.User,
+        action: str,
+        emoji: str,
+        disabled: bool = False,
+        style: discord.ButtonStyle = discord.ButtonStyle.secondary,
+    ):
+        super().__init__(
+            emoji=emoji,
+            style=style,
+            custom_id=f"help:v2:{action}:{invoker.id}",
+            disabled=disabled,
+        )
+        self.invoker = invoker
+        self.action = action
 
     async def callback(self, interaction: discord.Interaction):
-        if self.invoker == interaction.user:
-            if self.args or self.args == 0:
-                func = functools.partial(self.command, self.args, interaction)
-                await func()
-            else:
-                await self.command(interaction)
-        else:
-            await interaction.response.send_message(
-                "You must run this command to interact with it.", ephemeral=True)
+        if interaction.user != self.invoker:
+            await interaction.response.send_message("You must run this command to interact with it.", ephemeral=True)
+            return
+
+        view: HelpView = self.view  # type: ignore[assignment]
+        if self.action == "home":
+            await view.set_page(0, interaction)
+        elif self.action == "prev":
+            await view.set_page(view.index - 1, interaction)
+        elif self.action == "delete":
+            await interaction.response.defer()
+            if interaction.message:
+                await interaction.message.delete()
+        elif self.action == "next":
+            await view.set_page(view.index + 1, interaction)
+        elif self.action == "last":
+            await view.set_page(view.total_pages - 1, interaction)
 
 
-class View(discord.ui.View):
-
-    def __init__(self, mapping: dict, ctx: discord.ext.commands.context.Context, homeembed: discord.embeds.Embed, ui: int):
+class HelpView(discord.ui.LayoutView):
+    def __init__(
+        self,
+        mapping: dict,
+        ctx: commands.Context,
+        homeembed: Optional[discord.Embed] = None,
+        ui: int = 2,
+        *,
+        prefix: Optional[str] = None,
+        total_commands: Optional[int] = None,
+    ):
         super().__init__(timeout=None)
-        self.mapping, self.ctx, self.home = mapping, ctx, homeembed
-        self.index, self.buttons = 0, None
-
-        self.options, self.embeds, self.total_pages = self.gen_embeds()
-
-        if ui == 0:
-            self.add_item(Dropdown(ctx=self.ctx, options=self.options))
-        elif ui == 1:
-            self.buttons = self.add_buttons()
-        else:
-            self.buttons = self.add_buttons()
-            self.add_item(Dropdown(ctx=self.ctx, options=self.options))
-
-    def add_buttons(self):
-        self.homeB = Button(label="", style=discord.ButtonStyle.secondary, emoji="<:rewind1:1329360839874056225>", command=self.set_page, args=0, ctx=self.ctx)
-        self.backB = Button(label="", style=discord.ButtonStyle.secondary, emoji="<:next:1327829548426854522>", command=self.to_page, args=-1, ctx=self.ctx)
-        self.quitB = Button(label="", style=discord.ButtonStyle.danger, emoji="<:delete:1327842168693461022>", command=self.quit, ctx=self.ctx)
-        self.nextB = Button(label="", style=discord.ButtonStyle.secondary, emoji="<:icons_next:1327829470027055184>", command=self.to_page, args=1, ctx=self.ctx)
-        self.lastB = Button(label="", style=discord.ButtonStyle.secondary, emoji="<:forward:1329361532999569439>", command=self.set_last_page, ctx=self.ctx)
-
-        buttons = [self.homeB, self.backB, self.quitB, self.nextB, self.lastB]
-        for button in buttons:
-            self.add_item(button)
-        return buttons
-
-    def find_index_from_select(self, value):
-        i = 0
-        for cog in self.get_cogs():
-            if "help_custom" in dir(cog):
-                _, label, _ = cog.help_custom()
-                if label == value:
-                    return i + 1
-                i += 1
+        self.mapping = mapping
+        self.ctx = ctx
+        self.prefix = prefix or getattr(ctx, "prefix", ">") or ">"
+        self.total_commands = total_commands or len(set(ctx.bot.walk_commands()))
+        self.index = 0
+        self.pages, self.options = self._build_pages()
+        self.total_pages = len(self.pages)
+        self._render()
 
     def get_cogs(self):
         return list(self.mapping.keys())
 
-    def gen_embeds(self):
-        options, embeds = [], []
-        total_pages = 0
+    def find_index_from_select(self, value: str) -> int:
+        for index, option in enumerate(self.options):
+            if option.value == value:
+                return index
+        return 0
 
-        options.append(
-            discord.SelectOption(label="Home",
-                                 emoji='<:home:1332569722801225749>', description=""))
-        embeds.append(self.home)
-        total_pages += 1
+    def _build_home_page(self) -> str:
+        module_lines = [
+            f"{emojis.VOICE_003466} Voice",
+            f"{emojis.GAMES} Games",
+            f"{emojis.GREET} Welcomer",
+            f"{emojis.AUTOREACT} Autoreact & responder",
+            f"{emojis.AUTOROLE} Autorole & Invc",
+            f"{emojis.EXTRA} Fun & AI Image Gen",
+            f"{emojis.IGNORE} Ignore Channels",
+            f"{emojis.LOGGING} Advance Logging",
+            f"{emojis.INVITETRACKER} Invite Tracker",
+        ]
+        feature_lines = [
+            f"{emojis.SECURITY} Security",
+            f"{emojis.BOTS} Automoderation",
+            f"{emojis.UTILITY} Utility",
+            f"{emojis.MUSIC} Music",
+            f"{emojis.MODERATION} Moderation",
+            f"{emojis.CUSTOMROLE} Customrole",
+            f"{emojis.GIVEAWAY_644980} Giveaway",
+            f"{emojis.TICKET} Ticket",
+            f"{emojis.VANITYROLES} Vanityroles",
+        ]
+
+        return "\n".join(
+            [
+                "## Help",
+                f"{emojis.BLUEDOT} **Server Prefix:** `{self.prefix}`",
+                f"{emojis.BLUEDOT} **Total Commands:** `{self.total_commands}`",
+                f"{emojis.BLUEDOT} **Type `{self.prefix}antinuke enable` to get started**",
+                "",
+                f"### {emojis.MODULE} Module",
+                "\n".join(module_lines),
+                "",
+                f"### {emojis.FILDER} My Features",
+                "\n".join(feature_lines),
+            ]
+        )
+
+    def _build_command_page(self, cog) -> str:
+        _, label, description = cog.help_custom()
+        lines = [f"## {label}", description or "Commands in this category.", ""]
+
+        commands_for_cog = [command for command in cog.get_commands() if not command.hidden]
+        if not commands_for_cog:
+            lines.append("No commands available.")
+        else:
+            for command in commands_for_cog:
+                params = "".join(f" <{param}>" for param in command.clean_params)
+                help_text = command.help or "No description provided."
+                lines.append(f"**`{self.prefix}{command.name}{params}`**")
+                lines.append(help_text)
+                lines.append("")
+
+        page = "\n".join(lines).strip()
+        if len(page) > MAX_PAGE_CHARS:
+            page = page[: MAX_PAGE_CHARS - 40].rstrip() + "\n\n...more commands available."
+        return page
+
+    def _build_pages(self) -> tuple[list[str], list[discord.SelectOption]]:
+        pages = [self._build_home_page()]
+        options = [
+            discord.SelectOption(label="Home", value="__home__", emoji=str(emojis.HOME), description="Main help panel")
+        ]
 
         for cog in self.get_cogs():
-            if "help_custom" in dir(cog):
-                emoji, label, description = cog.help_custom()
-                options.append(discord.SelectOption(label=label, emoji=emoji, description=description))
-                embed = discord.Embed(title=f"{emoji} {label}",
-                                      color=0x000000)
+            if "help_custom" not in dir(cog):
+                continue
 
-                for command in cog.get_commands():
-                    params = ""
-                    for param in command.clean_params:
-                        params += f" <{param}>"
-                    embed.add_field(name=f"{command.name}{params}",
-                                    value=f"{command.help}\n\u200b",
-                                    inline=False)
+            emoji, label, description = cog.help_custom()
+            pages.append(self._build_command_page(cog))
+            options.append(
+                discord.SelectOption(
+                    label=label[:100],
+                    value=label[:100],
+                    emoji=str(emoji),
+                    description=(description or "")[:100],
+                )
+            )
 
-                embeds.append(embed)
-                total_pages += 1
+        return pages, options[:25]
 
-        self.home.set_footer(text=f"• Help page 1/{total_pages} | Requested by: {self.ctx.author.display_name}",
-                             icon_url=f"{self.ctx.bot.user.avatar.url}")
+    def _footer(self) -> str:
+        return f"Page {self.index + 1}/{self.total_pages} | Requested by: {self.ctx.author.display_name}"
 
-        return options, embeds, total_pages
+    def _nav_buttons(self) -> list[HelpButton]:
+        return [
+            HelpButton(invoker=self.ctx.author, action="home", emoji=str(emojis.REWIND1), disabled=self.index == 0),
+            HelpButton(invoker=self.ctx.author, action="prev", emoji=str(emojis.NEXT), disabled=self.index == 0),
+            HelpButton(invoker=self.ctx.author, action="delete", emoji=str(emojis.DELETE), style=discord.ButtonStyle.danger),
+            HelpButton(
+                invoker=self.ctx.author,
+                action="next",
+                emoji=str(emojis.ICONS_NEXT),
+                disabled=self.index >= self.total_pages - 1,
+            ),
+            HelpButton(
+                invoker=self.ctx.author,
+                action="last",
+                emoji=str(emojis.FORWARD),
+                disabled=self.index >= self.total_pages - 1,
+            ),
+        ]
 
-    async def quit(self, interaction: discord.Interaction):
-        await interaction.response.defer()
-        await interaction.delete_original_response()
-
-    async def to_page(self, page: int, interaction: discord.Interaction):
-        if not self.index + page < 0 or not self.index + page > len(self.options):
-            await self.set_index(page)
-            embed = self.embeds[self.index]
-            embed.set_footer(text=f"• Help page {self.index + 1}/{self.total_pages} | Requested by: {self.ctx.author.display_name}",
-                             icon_url=f"{self.ctx.bot.user.avatar.url}")
-            await interaction.response.edit_message(embed=embed, view=self)
+    def _render(self) -> None:
+        self.clear_items()
+        self.add_item(
+            container(
+                text(self.pages[self.index]),
+                separator(),
+                text(self._footer()),
+                separator(),
+                action_row(*self._nav_buttons()),
+                action_row(HelpDropdown(self.ctx, self.options)),
+            )
+        )
 
     async def set_page(self, page: int, interaction: discord.Interaction):
-        self.index = page
-        await self.to_page(0, interaction)
+        self.index = max(0, min(page, self.total_pages - 1))
+        self._render()
+        await interaction.response.edit_message(view=self)
 
-    async def set_index(self, page):
-        self.index += page
-        if self.buttons:
-            for button in self.buttons[0:-1]:
-                button.disabled = False
-            if self.index == 0:
-                self.backB.disabled = True
-            elif self.index == len(self.options) - 1:
-                self.nextB.disabled = True
 
-    async def set_last_page(self, interaction: discord.Interaction):
-        await self.set_page(len(self.options) - 1, interaction)
+View = HelpView

@@ -1,3 +1,5 @@
+from utils import emojis
+
 import discord
 
 from discord.ext import commands
@@ -12,7 +14,7 @@ class _ticket(commands.Cog):
 
     def help_custom(self):
 
-              emoji = '<:ticket:1355527347335467191>'
+              emoji = f'{emojis.TICKET}'
 
               label = "Ticket"
 

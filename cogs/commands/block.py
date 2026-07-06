@@ -1,3 +1,6 @@
+from utils import emojis
+
+import asyncio
 import discord
 from discord.ext import commands
 import aiosqlite
@@ -6,7 +9,7 @@ from utils import Paginator, DescriptionEmbedPaginator
 class Block(commands.Cog):
   def __init__(self, bot):
     self.bot = bot
-    self.bot.loop.create_task(self.set_db())
+    asyncio.create_task(self.set_db())
 
   #@commands.Cog.listener()
   async def set_db(self):
@@ -57,7 +60,7 @@ class Block(commands.Cog):
         await db.execute('INSERT INTO user_blacklist (user_id) VALUES (?)', (user.id,))
         await db.commit()
         embed = discord.Embed(
-          title="<:tick:1327829594954530896> User Blacklisted",
+          title=f"{emojis.TICK} User Blacklisted",
           description=f"{user.mention} has been added to the blacklist.",
           color=0x000000
         )
@@ -70,7 +73,7 @@ class Block(commands.Cog):
       cursor = await db.execute('SELECT user_id FROM user_blacklist WHERE user_id = ?', (user.id,))
       if not await cursor.fetchone():
         embed = discord.Embed(
-          title="<:olympus_cross:1227866668152393789> User Not Blacklisted",
+          title=f"{emojis.OLYMPUS_CROSS} User Not Blacklisted",
           description=f"{user.mention} is not in the blacklist.",
           color=0x000000
         )
@@ -79,7 +82,7 @@ class Block(commands.Cog):
         await db.execute('DELETE FROM user_blacklist WHERE user_id = ?', (user.id,))
         await db.commit()
         embed = discord.Embed(
-          title="<:tick:1327829594954530896> User Unblacklisted",
+          title=f"{emojis.TICK} User Unblacklisted",
           description=f"{user.mention} has been removed from the blacklist.",
           color=0x000000
         )
@@ -93,7 +96,7 @@ class Block(commands.Cog):
       rows = await cursor.fetchall()
       if not rows:
         embed = discord.Embed(
-          title="<:CrossIcon:1327829124894429235> No Blacklisted Users",
+          title=f"{emojis.CROSSICON} No Blacklisted Users",
           description="There are no users in the blacklist.",
           color=0x000000
         )
@@ -137,7 +140,7 @@ class Block(commands.Cog):
       cursor = await db.execute('SELECT guild_id FROM guild_blacklist WHERE guild_id = ?', (guild_id,))
       if await cursor.fetchone():
         embed = discord.Embed(
-          title="<:CrossIcon:1327829124894429235> Guild Already Blacklisted",
+          title=f"{emojis.CROSSICON} Guild Already Blacklisted",
           description=f"Guild with ID `{guild_id}` is already blacklisted.",
           color=0x000000
         )
@@ -146,7 +149,7 @@ class Block(commands.Cog):
         await db.execute('INSERT INTO guild_blacklist (guild_id) VALUES (?)', (guild_id,))
         await db.commit()
         embed = discord.Embed(
-          title="<:tick:1327829594954530896> Guild Blacklisted",
+          title=f"{emojis.TICK} Guild Blacklisted",
           description=f"Guild with ID `{guild_id}` has been added to the blacklist.",
           color=0x000000
         )
@@ -159,7 +162,7 @@ class Block(commands.Cog):
       cursor = await db.execute('SELECT guild_id FROM guild_blacklist WHERE guild_id = ?', (guild_id,))
       if not await cursor.fetchone():
         embed = discord.Embed(
-          title="<:CrossIcon:1327829124894429235> Guild Not Blacklisted",
+          title=f"{emojis.CROSSICON} Guild Not Blacklisted",
           description=f"Guild with ID `{guild_id}` is not in the blacklist.",
           color=0x000000
         )
@@ -168,7 +171,7 @@ class Block(commands.Cog):
         await db.execute('DELETE FROM guild_blacklist WHERE guild_id = ?', (guild_id,))
         await db.commit()
         embed = discord.Embed(
-          title="<:tick:1327829594954530896> Guild Unblacklisted",
+          title=f"{emojis.TICK} Guild Unblacklisted",
           description=f"Guild with ID `{guild_id}` has been removed from the blacklist.",
           color=0x000000
         )
@@ -183,7 +186,7 @@ class Block(commands.Cog):
       rows = await cursor.fetchall()
       if not rows:
         embed = discord.Embed(
-          title="<:CrossIcon:1327829124894429235> No Blacklisted Guilds",
+          title=f"{emojis.CROSSICON} No Blacklisted Guilds",
           description="There are no guilds in the blacklist.",
           color=0x000000
         )

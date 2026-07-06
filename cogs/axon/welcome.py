@@ -1,3 +1,5 @@
+from utils import emojis
+
 import discord
 from discord.ext import commands
 
@@ -9,7 +11,7 @@ class _welcome(commands.Cog):
     """Welcome commands"""
   
     def help_custom(self):
-		      emoji = '<:greet:1330393349441585253>'
+		      emoji = f'{emojis.GREET}'
 		      label = "Welcomer Commands"
 		      description = "Show you Command Of Welcomer"
 		      return emoji, label, description

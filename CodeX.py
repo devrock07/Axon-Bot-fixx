@@ -1,156 +1,112 @@
-import os
-os.system("pip install -r requirements.txt")
 import asyncio
+import logging
+import os
 import traceback
 from threading import Thread
-from datetime import datetime
 
 import aiohttp
 import discord
 from discord.ext import commands
+from dotenv import load_dotenv
+from flask import Flask
 
-from core import Context
-from core.Cog import Cog
 from core.axon import axon
-from utils.Tools import *
-from utils.config import *
 
-import jishaku
-import cogs
+load_dotenv()
+
+logging.basicConfig(
+    level=os.getenv("LOG_LEVEL", "INFO").upper(),
+    format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
+)
+log = logging.getLogger("axon")
+
+TOKEN = (os.getenv("TOKEN") or "").strip()
+COMMAND_LOG_WEBHOOK_URL = os.getenv("COMMAND_LOG_WEBHOOK_URL")
+ENABLE_KEEP_ALIVE = os.getenv("ENABLE_KEEP_ALIVE", "true").lower() in {"1", "true", "yes", "on"}
+
+client = axon()
+app = Flask(__name__)
 
 os.environ["JISHAKU_NO_DM_TRACEBACK"] = "False"
 os.environ["JISHAKU_HIDE"] = "True"
 os.environ["JISHAKU_NO_UNDERSCORE"] = "True"
 os.environ["JISHAKU_FORCE_PAGINATOR"] = "True"
 
-from dotenv import load_dotenv
-load_dotenv()
-TOKEN = os.getenv("TOKEN")
-
-client = axon()
-tree = client.tree
 
 @client.event
 async def on_ready():
     await client.wait_until_ready()
-    
-    print("""
-           \033[1;31m
 
- ▄████▄   ▒█████  ▓█████▄ ▓█████ ▒██   ██▒
-▒██▀ ▀█  ▒██▒  ██▒▒██▀ ██▌▓█   ▀ ▒▒ █ █ ▒░
-▒▓█    ▄ ▒██░  ██▒░██   █▌▒███   ░░  █   ░
-▒▓▓▄ ▄██▒▒██   ██░░▓█▄   ▌▒▓█  ▄  ░ █ █ ▒ 
-▒ ▓███▀ ░░ ████▓▒░░▒████▓ ░▒████▒▒██▒ ▒██▒
-░ ░▒ ▒  ░░ ▒░▒░▒░  ▒▒▓  ▒ ░░ ▒░ ░▒▒ ░ ░▓ ░
-  ░  ▒     ░ ▒ ▒░  ░ ▒  ▒  ░ ░  ░░░   ░▒ ░
-░        ░ ░ ░ ▒   ░ ░  ░    ░    ░    ░  
-░ ░          ░ ░     ░       ░  ░ ░    ░  
-░                  ░                      
+    log.info("Loaded and online as %s", client.user)
+    log.info("Connected to %s guilds and %s cached users", len(client.guilds), len(client.users))
 
-           \033[0m
-           """)
-    print("Loaded & Online!")
-    print(f"Logged in as: {client.user}")
-    print(f"Connected to: {len(client.guilds)} guilds")
-    print(f"Connected to: {len(client.users)} users")
+    if client._synced_app_commands:
+        return
+
     try:
         synced = await client.tree.sync()
-        all_commands = list(client.commands)
-        print(f"Synced Total {len(all_commands)} Client Commands and {len(synced)} Slash Commands")
-    except Exception as e:
-        print(e)
+        client._synced_app_commands = True
+        log.info("Synced %s prefix commands and %s slash commands", len(client.commands), len(synced))
+    except Exception:
+        log.exception("Slash command sync failed")
+
 
 @client.event
 async def on_command_completion(context: commands.Context) -> None:
-    if context.author.id == 767979794411028491:
+    if not COMMAND_LOG_WEBHOOK_URL or context.author.id == 767979794411028491:
         return
 
     full_command_name = context.command.qualified_name
-    split = full_command_name.split("\n")
-    executed_command = str(split[0])
-    webhook_url = "https://discord.com/api/webhooks/1389541229775159356/fnyxoWRhcIt77OLabLZLLCrKxoxQDmEN4yZbUaDMK82-qymTbMMwwQA5WkFJ4zRi0R_l"
-    async with aiohttp.ClientSession() as session:
-        webhook = discord.Webhook.from_url(webhook_url, session=session)
+    executed_command = str(full_command_name.split("\n")[0])
+
+    try:
+        session = client.session or aiohttp.ClientSession()
+        webhook = discord.Webhook.from_url(COMMAND_LOG_WEBHOOK_URL, session=session)
+        avatar_url = context.author.display_avatar.url
+        embed = discord.Embed(title="Command Executed")
+        embed.set_author(name=str(context.author), icon_url=avatar_url)
+        embed.add_field(name="Command", value=executed_command, inline=False)
+        embed.add_field(name="User", value=f"{context.author} ({context.author.id})", inline=False)
 
         if context.guild is not None:
-            try:
-                embed = discord.Embed(color=0x000000)
-                avatar_url = context.author.avatar.url if context.author.avatar else context.author.default_avatar.url
-                embed.set_author(
-                    name=f"Executed {executed_command} Command By : {context.author}",
-                    icon_url=avatar_url
-                )
-                embed.set_thumbnail(url=avatar_url)
-                embed.add_field(name=" Command Name :",
-                                value=f"{executed_command}",
-                                inline=False)
-                embed.add_field(
-                    name=" Command Executed By :",
-                    value=f"{context.author} | ID: [{context.author.id}](https://discord.com/users/{context.author.id})",
-                    inline=False)
-                embed.add_field(
-                    name=" Command Executed In :",
-                    value=f"{context.guild.name} | ID: [{context.guild.id}](https://discord.com/guilds/{context.guild.id})",
-                    inline=False)
-                embed.add_field(
-                    name=" Command Executed In Channel :",
-                    value=f"{context.channel.name} | ID: [{context.channel.id}](https://discord.com/channels/{context.guild.id}/{context.channel.id})",
-                    inline=False)
+            embed.add_field(name="Guild", value=f"{context.guild.name} ({context.guild.id})", inline=False)
+            embed.add_field(name="Channel", value=f"{context.channel} ({context.channel.id})", inline=False)
 
-                embed.timestamp = discord.utils.utcnow()
-                embed.set_footer(text="Quantum X Development™ ❤️",
-                                 icon_url=client.user.display_avatar.url)
-                await webhook.send(embed=embed)
-            except Exception as e:
-                print(f'Command failed: {e}')
-                traceback.print_exc()
-        else:
-            try:
-                embed1 = discord.Embed(color=0x000000)
-                avatar_url = context.author.avatar.url if context.author.avatar else context.author.default_avatar.url
-                embed1.set_author(
-                    name=f"Executed {executed_command} Command By : {context.author}",
-                    icon_url=avatar_url
-                )
-                embed1.set_thumbnail(url=avatar_url)
-                embed1.add_field(name=" Command Name :",
-                                 value=f"{executed_command}",
-                                 inline=False)
-                embed1.add_field(
-                    name=" Command Executed By :",
-                    value=f"{context.author} | ID: [{context.author.id}](https://discord.com/users/{context.author.id})",
-                    inline=False)
-                embed1.set_footer(text=f"Powered by Quantum X Development™",
-                                  icon_url=client.user.display_avatar.url)
-                await webhook.send(embed=embed1)
-            except Exception as e:
-                print(f'Command failed: {e}')
-                traceback.print_exc()
+        embed.timestamp = discord.utils.utcnow()
+        await webhook.send(embed=embed)
 
-from flask import Flask
-from threading import Thread
+        if client.session is None:
+            await session.close()
+    except Exception as exc:
+        log.warning("Command log webhook failed: %s", exc)
+        traceback.print_exc()
 
-app = Flask(__name__)
 
-@app.route('/')
+@app.route("/")
 def home():
-    return f"Axon Development™ 2025"
+    return "Axon X is online"
 
-def run():
-    app.run(host='0.0.0.0', port=8080)
+
+def run_keep_alive():
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", "8080")), use_reloader=False)
+
 
 def keep_alive():
-    server = Thread(target=run)
+    if not ENABLE_KEEP_ALIVE:
+        return
+    server = Thread(target=run_keep_alive, daemon=True)
     server.start()
 
-keep_alive()
 
 async def main():
+    if not TOKEN:
+        raise RuntimeError("TOKEN is not set. Add it to .env or your process environment.")
+
+    keep_alive()
     async with client:
-        os.system("clear")
         await client.load_extension("jishaku")
         await client.start(TOKEN)
+
 
 if __name__ == "__main__":
     asyncio.run(main())

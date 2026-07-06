@@ -1,3 +1,5 @@
+from utils import emojis
+
 import discord
 from discord.ext import commands
 
@@ -9,7 +11,7 @@ class _moderation(commands.Cog):
     """Moderation commands"""
   
     def help_custom(self):
-		      emoji = '<:Moderation:1330393377203556412>'
+		      emoji = f'{emojis.MODERATION}'
 		      label = "Moderation Commands"
 		      description = "Show you Commands of Moderation"
 		      return emoji, label, description

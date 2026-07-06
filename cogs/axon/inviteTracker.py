@@ -1,3 +1,5 @@
+from utils import emojis
+
 import discord
 
 from discord.ext import commands
@@ -12,7 +14,7 @@ class _inviteTracker(commands.Cog):
 
     def help_custom(self):
 
-              emoji = '<:InviteTracker:1392125185817051239>'
+              emoji = f'{emojis.INVITETRACKER}'
 
               label = "Invite Tracker"
 

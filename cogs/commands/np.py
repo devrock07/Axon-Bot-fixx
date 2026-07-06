@@ -1,3 +1,6 @@
+from utils import emojis
+
+import asyncio
 from discord.ext import commands, tasks
 from discord import *
 import discord
@@ -90,7 +93,7 @@ class TimeSelect(Select):
         if log_channel:
             embed = discord.Embed(
                 title="User Added to No Prefix",
-                description=f"**User**: [{self.user}](https://discord.com/users/{self.user.id})\n**User Mention**: {self.user.mention}\n** ID**: {self.user.id}\n\n** Added By**: [{self.author.display_name}](https://discord.com/users/{self.author.id})\n<a:timer:1329404677820911697>**Expiry Time**: {expiry_text}\n<:olympusArrow:1297341001341599797> **Timestamp**: {expiry_timestamp}\n\n<a:premium:1204110058124873889> **Tier**: **{self.values[0].upper()}**",
+                description=f"**User**: [{self.user}](https://discord.com/users/{self.user.id})\n**User Mention**: {self.user.mention}\n** ID**: {self.user.id}\n\n** Added By**: [{self.author.display_name}](https://discord.com/users/{self.author.id})\n{emojis.TIMER}**Expiry Time**: {expiry_text}\n{emojis.OLYMPUSARROW} **Timestamp**: {expiry_timestamp}\n\n{emojis.PREMIUM} **Tier**: **{self.values[0].upper()}**",
                 color=0x000000
             )
             embed.set_thumbnail(url=self.user.avatar.url if self.user.avatar else self.user.default_avatar.url)
@@ -98,7 +101,7 @@ class TimeSelect(Select):
             
 
         
-        embed = discord.Embed(description=f"**Added Global No Prefix**:\n**User**: **[{self.user}](https://discord.com/users/{self.user.id})**\n**User Mention**: {self.user.mention}\n**User ID**: {self.user.id}\n\n__**Additional Info**__:\n **Added By**: **[{self.author.display_name}](https://discord.com/users/{self.author.id})**\n<a:timer:1329404677820911697> **Expiry Time:** {expiry_text}\n **Timestamp:** {expiry_timestamp}", color=0x000000)
+        embed = discord.Embed(description=f"**Added Global No Prefix**:\n**User**: **[{self.user}](https://discord.com/users/{self.user.id})**\n**User Mention**: {self.user.mention}\n**User ID**: {self.user.id}\n\n__**Additional Info**__:\n **Added By**: **[{self.author.display_name}](https://discord.com/users/{self.author.id})**\n{emojis.TIMER} **Expiry Time:** {expiry_text}\n **Timestamp:** {expiry_timestamp}", color=0x000000)
         embed.set_author(name="Added No Prefix", icon_url="https://cdn.discordapp.com/icons/1166303696263585852/eeb00b2cf541438e88cdf842394c5b30.png?size=1024")
         embed.set_footer(text="DM will be sent to the user in case No prefix is expired.")
         await interaction.response.edit_message(embed=embed, view=None)
@@ -118,8 +121,8 @@ class NoPrefix(commands.Cog):
         self.client = client
         self.staff = set()
         self.db_path = 'db/np.db'
-        self.client.loop.create_task(self.load_staff())
-        self.client.loop.create_task(self.setup_database())
+        asyncio.create_task(self.load_staff())
+        asyncio.create_task(self.setup_database())
         self.expiry_check.start()
 
     async def setup_database(self):
@@ -158,7 +161,10 @@ class NoPrefix(commands.Cog):
 
 
     async def load_staff(self):
-        await self.client.wait_until_ready()
+        try:
+            await self.client.wait_until_ready()
+        except RuntimeError:
+            pass
         async with aiosqlite.connect(self.db_path) as db:
             async with db.execute('SELECT id FROM staff') as cursor:
                 self.staff = {row[0] for row in await cursor.fetchall()}
@@ -204,7 +210,7 @@ class NoPrefix(commands.Cog):
                         
                                     
                         embed = discord.Embed(
-                            description=f"<:icons_warning:1327829522573430864> Your No Prefix status has **Expired**. You will now require the prefix to use commands.",
+                            description=f"{emojis.ICONS_WARNING} Your No Prefix status has **Expired**. You will now require the prefix to use commands.",
                             color=0x000000
                         )
                         embed.set_author(name="No Prefix Expired", icon_url=user.avatar.url if user.avatar else user.default_avatar.url)
@@ -225,7 +231,10 @@ class NoPrefix(commands.Cog):
 
     @expiry_check.before_loop
     async def before_expiry_check(self):
-        await self.client.wait_until_ready()
+        try:
+            await self.client.wait_until_ready()
+        except RuntimeError:
+            return
 
     @commands.group(name="np", help="Allows you to add someone to the no-prefix list (owner-only command)")
     @commands.check(is_owner_or_staff)
@@ -364,7 +373,7 @@ class NoPrefix(commands.Cog):
                 description=(
                     f"**User**: [{user}](https://discord.com/users/{user.id})\n"
                     f"**User ID**: {user.id}\n\n"
-                    f"**<a:timer:1329404677820911697> Expiry**: {expire_time} ({expire_timestamp})"
+                    f"**{emojis.TIMER} Expiry**: {expire_time} ({expire_timestamp})"
                 ),
                 color=0x000000
             )
@@ -508,7 +517,7 @@ class NoPrefix(commands.Cog):
             await db.execute("DELETE FROM np WHERE id = ?", (user.id,))
             await db.commit()
             
-        embed= discord.Embed(title="<a:Warning:1299512982006665216> Global No Prefix Expired",
+        embed= discord.Embed(title=f"{emojis.WARNING} Global No Prefix Expired",
                         description=f"Hey {user.mention}, your global no prefix has expired!\n\n__**Reason:**__ Unboosting our partnered Server.\nIf you think this is a mistake then please reach out [Support Server](https://discord.gg/odx).",
                         color=0x000000)
             
@@ -576,7 +585,7 @@ class NoPrefix(commands.Cog):
             
             # Send success message
             success_embed = discord.Embed(
-                title="<:tick_red:1374052118020882563> No-Prefix Reset Complete",
+                title=f"{emojis.TICK_RED} No-Prefix Reset Complete",
                 description=f"Successfully removed {count} users from the no-prefix list.",
                 color=0x000000
             )
@@ -587,7 +596,7 @@ class NoPrefix(commands.Cog):
             if log_channel:
                 log_embed = discord.Embed(
                     title="No-Prefix List Reset",
-                    description=f"** Reset By**: [{ctx.author.display_name}](https://discord.com/users/{ctx.author.id})\n**<:info:1374723970376405113> Users Removed**: {count}",
+                    description=f"** Reset By**: [{ctx.author.display_name}](https://discord.com/users/{ctx.author.id})\n**{emojis.INFO} Users Removed**: {count}",
                     color=0x000000
                 )
                 log_embed.set_footer(text="No Prefix Reset Log")

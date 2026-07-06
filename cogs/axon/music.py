@@ -1,3 +1,5 @@
+from utils import emojis
+
 import discord
 from discord.ext import commands
 
@@ -9,7 +11,7 @@ class _music(commands.Cog):
     """Music commands"""
 
     def help_custom(self):
-              emoji = '<:music:1330393374271737896>'
+              emoji = f'{emojis.MUSIC}'
               label = "Music Commands"
               description = "Show you Commands of Music"
               return emoji, label, description

@@ -1,3 +1,5 @@
+from utils import emojis
+
 import discord
 from discord.ext import commands
 
@@ -8,7 +10,7 @@ class _server(commands.Cog):
     """Server commands"""
   
     def help_custom(self):
-		      emoji = '<:Autoreact:1330393356198477824>'
+		      emoji = f'{emojis.AUTOREACT}'
 		      label = "Server Commands"
 		      description = "Show you Commands of Server"
 		      return emoji, label, description

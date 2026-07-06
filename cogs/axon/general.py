@@ -1,3 +1,5 @@
+from utils import emojis
+
 import discord
 from discord.ext import commands
 
@@ -9,7 +11,7 @@ class _general(commands.Cog):
     """General commands"""
 
     def help_custom(self):
-              emoji = '<:filder:1330393371650297887>'
+              emoji = f'{emojis.FILDER}'
               label = "General Commands"
               description = "Show you Commands of General"
               return emoji, label, description

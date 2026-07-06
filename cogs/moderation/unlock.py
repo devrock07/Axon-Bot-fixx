@@ -1,3 +1,5 @@
+from utils import emojis
+
 import discord
 from discord.ext import commands
 from discord import ui
@@ -45,7 +47,7 @@ class LockUnlockView(ui.View):
                 item.disabled = True
         await self.message.edit(view=self)
 
-    @ui.button(style=discord.ButtonStyle.gray, emoji="<:delete:1327842168693461022>")
+    @ui.button(style=discord.ButtonStyle.gray, emoji=f"{emojis.DELETE}")
     async def delete(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.message.delete()
 
@@ -79,7 +81,7 @@ class Unlock(commands.Cog):
         await channel.set_permissions(ctx.guild.default_role, send_messages=True)
 
         embed = discord.Embed(
-            description=f" **Channel**: {channel.mention}\ **Status**: Unlocked\n **Reason:** Unlock request by {ctx.author}",
+            description=f" **Channel**: {channel.mention}\n **Status**: Unlocked\n **Reason:** Unlock request by {ctx.author}",
             color=self.color
         )
         embed.add_field(name=" **Moderator:**", value=ctx.author.mention, inline=False)

@@ -1,4 +1,6 @@
 from __future__ import annotations
+from utils import emojis
+
 import asyncio
 from typing import TYPE_CHECKING, Any, Dict, Optional
 import discord
@@ -131,13 +133,13 @@ class Paginator(discord.ui.View):
         """
 
         # Update the button emojis
-        self.first_page_button.emoji = kwargs.get('first_button_emoji') or '<:rewind1:1329360839874056225>'
+        self.first_page_button.emoji = kwargs.get('first_button_emoji') or f'{emojis.REWIND1}'
         self.previous_page_button.emoji = kwargs.get(
-            'previous_button_emoji') or '<:next:1327829548426854522>'
-        self.next_page_button.emoji = kwargs.get('next_button_emoji') or '<:icons_next:1327829470027055184>'
-        self.last_page_button.emoji = kwargs.get('last_button_emoji') or '<:forward:1329361532999569439>'
+            'previous_button_emoji') or f'{emojis.NEXT}'
+        self.next_page_button.emoji = kwargs.get('next_button_emoji') or f'{emojis.ICONS_NEXT}'
+        self.last_page_button.emoji = kwargs.get('last_button_emoji') or f'{emojis.FORWARD}'
         self.stop_button.emoji = kwargs.get(
-            'stop_button_emoji') or '<:delete:1327842168693461022>'
+            'stop_button_emoji') or f'{emojis.DELETE}'
 
         # Update the Button Styles
         self.first_page_button.style = kwargs.get(

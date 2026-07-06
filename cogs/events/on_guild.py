@@ -1,3 +1,5 @@
+from utils import emojis
+
 from discord.ext import commands
 from core import axon, Cog
 import discord
@@ -36,7 +38,7 @@ class Guild(Cog):
 
             embed.add_field(
                 name="**__About__**",
-                value=f"**Name : ** {guild.name}\n**ID :** {guild.id}\n**Owner <:owner:1329041011984433185> :** {guild.owner} (<@{guild.owner_id}>)\n**Created At : **{guild.created_at.month}/{guild.created_at.day}/{guild.created_at.year}\n**Members :** {len(guild.members)}",
+                value=f"**Name : ** {guild.name}\n**ID :** {guild.id}\n**Owner {emojis.OWNER} :** {guild.owner} (<@{guild.owner_id}>)\n**Created At : **{guild.created_at.month}/{guild.created_at.day}/{guild.created_at.year}\n**Members :** {len(guild.members)}",
                 inline=False
             )
             embed.add_field(
@@ -46,7 +48,7 @@ class Guild(Cog):
             )
             embed.add_field(
                 name="**__Members__**",
-                value=f"""<:riverse_fun:1327829569264160870> Members : {len(guild.members)}\n <:user:1329379728603353108> Humans : {len(list(filter(lambda m: not m.bot, guild.members)))}\n<:icons_bot:1327829370881966092> Bots : {len(list(filter(lambda m: m.bot, guild.members)))}
+                value=f"""{emojis.RIVERSE_FUN} Members : {len(guild.members)}\n {emojis.USER} Humans : {len(list(filter(lambda m: not m.bot, guild.members)))}\n{emojis.ICONS_BOT} Bots : {len(list(filter(lambda m: m.bot, guild.members)))}
                 """,
                 inline=False
             )
@@ -72,7 +74,7 @@ Threads : {len(guild.threads)}
             if not guild.chunked:
                 await guild.chunk()
 
-            embed = discord.Embed(description="<:iconArrowRight:1327829310962401331> Prefix For This Server is `>`\n<:iconArrowRight:1327829310962401331> Get Started with `>help`\n<:iconArrowRight:1327829310962401331> For detailed guides, FAQ & information, visit our **[Support Server](https://discord.gg/codexdev)**",
+            embed = discord.Embed(description=f"{emojis.ICONARROWRIGHT} Prefix For This Server is `>`\n{emojis.ICONARROWRIGHT} Get Started with `>help`\n{emojis.ICONARROWRIGHT} For detailed guides, FAQ & information, visit our **[Support Server](https://discord.gg/codexdev)**",
     color=0xff0000)
             embed.set_author(name="Thanks for adding me!", icon_url=guild.me.display_avatar.url)
             embed.set_footer(text="Powered by Axon Development™",)
@@ -117,7 +119,7 @@ Threads : {len(guild.threads)}
 
             embed.add_field(
                 name="**__About__**",
-                value=f"**Name : ** {guild.name}\n**ID :** {guild.id}\n**Owner <:axon_owner:1228227536207740989> :** {guild.owner} (<@{guild.owner_id}>)\n**Created At : **{guild.created_at.month}/{guild.created_at.day}/{guild.created_at.year}\n**Members :** {len(guild.members)}",
+                value=f"**Name : ** {guild.name}\n**ID :** {guild.id}\n**Owner {emojis.AXON_OWNER} :** {guild.owner} (<@{guild.owner_id}>)\n**Created At : **{guild.created_at.month}/{guild.created_at.day}/{guild.created_at.year}\n**Members :** {len(guild.members)}",
                 inline=False
             )
             embed.add_field(

@@ -1,3 +1,5 @@
+from utils import emojis
+
 ##################################
 import discord
 import requests
@@ -98,7 +100,7 @@ class Fun(commands.Cog):
   @ignore_check()
   @commands.cooldown(1, 3, commands.BucketType.user)
   async def mydog(self, ctx, user: discord.User):
-      processing= await ctx.reply("<a:Loading:1328740531907461233> Processing Image...")
+      processing= await ctx.reply(f"{emojis.LOADING} Processing Image...")
       base_image_path = "data/pictures/mydog.jpg"
       base_image = Image.open(base_image_path).convert("RGBA")
 
@@ -404,7 +406,7 @@ class Fun(commands.Cog):
   async def fake_ban(self, ctx, user: discord.Member):
     embed = discord.Embed(
       title="Successfully Banned!",
-      description=f"<:tick:1327829594954530896> | {user.mention} has been successfully banned",
+      description=f"{emojis.TICK} | {user.mention} has been successfully banned",
       color=0x000000
     )
     embed.set_footer(

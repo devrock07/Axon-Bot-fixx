@@ -1,3 +1,5 @@
+from utils import emojis
+
 import discord
 from discord.ext import commands
 from discord import ui
@@ -21,7 +23,7 @@ class KickView(ui.View):
             except Exception:
                 pass
 
-    @ui.button(style=discord.ButtonStyle.gray, emoji="<:delete:1327842168693461022>")
+    @ui.button(style=discord.ButtonStyle.gray, emoji=f"{emojis.DELETE}")
     async def delete(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.message.delete()
 
@@ -86,15 +88,15 @@ class Kick(commands.Cog):
         
         embed = discord.Embed(
             description=(
-                f"**<:user:1329379728603353108> Target User:** [{member}](https://discord.com/users/{member.id})\n"
-                f"<a:mention:1329408091011285113> **User Mention:** {member.mention}\n"
-                f"<:Commands:1329004882992300083> **Reason:** {reason}\n"
-                f"<:tick:1327829594954530896>**DM Sent:** {dm_status}"
+                f"**{emojis.USER} Target User:** [{member}](https://discord.com/users/{member.id})\n"
+                f"{emojis.MENTION} **User Mention:** {member.mention}\n"
+                f"{emojis.COMMANDS} **Reason:** {reason}\n"
+                f"{emojis.TICK}**DM Sent:** {dm_status}"
             ),
             color=self.color
         )
         embed.set_author(name=f"Successfully Kicked {member.name}", icon_url=member.avatar.url if member.avatar else member.default_avatar.url)
-        embed.add_field(name="<:U_admin:1327829252120510567> Moderator:", value=ctx.author.mention, inline=False)
+        embed.add_field(name=f"{emojis.U_ADMIN} Moderator:", value=ctx.author.mention, inline=False)
         embed.set_footer(text=f"Requested by {ctx.author}", icon_url=ctx.author.avatar.url if ctx.author.avatar else ctx.author.default_avatar.url)
         embed.timestamp = discord.utils.utcnow()
 

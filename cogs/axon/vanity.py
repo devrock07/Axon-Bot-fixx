@@ -1,3 +1,5 @@
+from utils import emojis
+
 import discord
 
 from discord.ext import commands
@@ -12,7 +14,7 @@ class _vanity(commands.Cog):
 
     def help_custom(self):
 
-              emoji = '<:VanityRoles:1392125176644108359>'
+              emoji = f'{emojis.VANITYROLES}'
 
               label = "Vanity"
 

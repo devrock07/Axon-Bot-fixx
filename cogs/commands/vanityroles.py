@@ -1,3 +1,4 @@
+import asyncio
 import discord
 from discord.ext import commands, tasks
 import aiosqlite
@@ -10,7 +11,7 @@ DB_PATH = "db/vanity.db"
 class VanityRoles(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.bot.loop.create_task(self.initialize_db())
+        asyncio.create_task(self.initialize_db())
         self.vanity_checker.start()
 
     async def initialize_db(self):

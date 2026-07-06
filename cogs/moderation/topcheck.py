@@ -1,3 +1,5 @@
+from utils import emojis
+
 import discord
 from discord.ext import commands
 import aiosqlite
@@ -7,7 +9,7 @@ class TopCheck(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.db_path = "db/topcheck.db"
-        self.bot.loop.create_task(self.setup())
+        asyncio.create_task(self.setup())
 
     async def setup(self):
         async with aiosqlite.connect(self.db_path) as db:
@@ -68,11 +70,11 @@ class TopCheck(commands.Cog):
     @commands.guild_only()
     async def topcheck_enable(self, ctx):
         if ctx.author.id != ctx.guild.owner_id:
-            return await ctx.reply("<:CrossIcon:1327829124894429235> Only the **Server Owner** can enable topcheck.")
+            return await ctx.reply(f"{emojis.CROSSICON} Only the **Server Owner** can enable topcheck.")
         if await self.is_topcheck_enabled(ctx.guild.id):
-            return await ctx.reply("<:CrossIcon:1327829124894429235> Topcheck is already enabled for this server.")
+            return await ctx.reply(f"{emojis.CROSSICON} Topcheck is already enabled for this server.")
         await self.enable_topcheck(ctx.guild.id)
-        await ctx.reply("<:tick:1327829594954530896> Topcheck has been Successfully enabled for this server.")
+        await ctx.reply(f"{emojis.TICK} Topcheck has been Successfully enabled for this server.")
 
     @topcheck.command(
         name="disable",
@@ -82,9 +84,9 @@ class TopCheck(commands.Cog):
         if ctx.author.id != ctx.guild.owner_id:
             return await ctx.reply("Only the **Server Owner** can disable topcheck.")
         if not await self.is_topcheck_enabled(ctx.guild.id):
-            return await ctx.reply("<:CrossIcon:1327829124894429235> Topcheck is not enabled for this server.")
+            return await ctx.reply(f"{emojis.CROSSICON} Topcheck is not enabled for this server.")
         await self.disable_topcheck(ctx.guild.id)
-        await ctx.reply("<:tick:1327829594954530896> Topcheck has been Successfully disabled for this server.")
+        await ctx.reply(f"{emojis.TICK} Topcheck has been Successfully disabled for this server.")
 
 """
 @Author: Sonu Jana

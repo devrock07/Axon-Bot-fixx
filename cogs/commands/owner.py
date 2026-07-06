@@ -1,4 +1,6 @@
 from __future__ import annotations
+from utils import emojis
+
 from discord.ext import commands
 from discord import *
 from PIL import Image, ImageDraw, ImageFont
@@ -124,7 +126,7 @@ async def do_removal(ctx, limit, predicate, *, before=None, after=None):
 
   spammers = Counter(m.author.display_name for m in deleted)
   deleted = len(deleted)
-  messages = [f'<:tick:1327829594954530896> | {deleted} message{" was" if deleted == 1 else "s were"} removed.']
+  messages = [f'{emojis.TICK} | {deleted} message{" was" if deleted == 1 else "s were"} removed.']
   if deleted:
       messages.append("")
       spammers = sorted(spammers.items(), key=lambda t: t[1], reverse=True)
@@ -133,7 +135,7 @@ async def do_removal(ctx, limit, predicate, *, before=None, after=None):
   to_send = "\n".join(messages)
 
   if len(to_send) > 2000:
-      await ctx.send(f"<:tick:1327829594954530896> | Successfully removed {deleted} messages.", delete_after=3)
+      await ctx.send(f"{emojis.TICK} | Successfully removed {deleted} messages.", delete_after=3)
   else:
       await ctx.send(to_send, delete_after=3)
 
@@ -159,8 +161,8 @@ class Owner(commands.Cog):
         self.db_path = 'db/np.db'
         self.stop_tour = False
         self.bot_owner_ids = [767979794411028491,]
-        self.client.loop.create_task(self.setup_database())
-        self.client.loop.create_task(self.load_staff())
+        asyncio.create_task(self.setup_database())
+        asyncio.create_task(self.load_staff())
         
 
     async def setup_database(self):
@@ -175,7 +177,10 @@ class Owner(commands.Cog):
     
 
     async def load_staff(self):
-        await self.client.wait_until_ready()
+        try:
+            await self.client.wait_until_ready()
+        except RuntimeError:
+            pass
         async with aiosqlite.connect(self.db_path) as db:
             async with db.execute('SELECT id FROM staff') as cursor:
                 self.staff = {row[0] for row in await cursor.fetchall()}
@@ -184,28 +189,28 @@ class Owner(commands.Cog):
     @commands.is_owner()
     async def staff_add(self, ctx, user: discord.User):
         if user.id in self.staff:
-            sonu = discord.Embed(title="<:icons_warning:1327829522573430864> Access Denied", description=f"{user} is already in the staff list.", color=0x000000)
+            sonu = discord.Embed(title=f"{emojis.ICONS_WARNING} Access Denied", description=f"{user} is already in the staff list.", color=0x000000)
             await ctx.reply(embed=sonu, mention_author=False)
         else:
             self.staff.add(user.id)
             async with aiosqlite.connect(self.db_path) as db:
                 await db.execute('INSERT OR IGNORE INTO staff (id) VALUES (?)', (user.id,))
                 await db.commit()
-            sonu2 = discord.Embed(title="<:tick:1327829594954530896> Success", description=f"Added {user} to the staff list.", color=0x000000)
+            sonu2 = discord.Embed(title=f"{emojis.TICK} Success", description=f"Added {user} to the staff list.", color=0x000000)
             await ctx.reply(embed=sonu2, mention_author=False)
 
     @commands.command(name="staff_remove", aliases=["staffremove", "removestaff"], help="Removes a user from the staff list.")
     @commands.is_owner()
     async def staff_remove(self, ctx, user: discord.User):
         if user.id not in self.staff:
-            sonu = discord.Embed(title="<:icons_warning:1327829522573430864> Access Denied", description=f"{user} is not in the staff list.", color=0x000000)
+            sonu = discord.Embed(title=f"{emojis.ICONS_WARNING} Access Denied", description=f"{user} is not in the staff list.", color=0x000000)
             await ctx.reply(embed=sonu, mention_author=False)
         else:
             self.staff.remove(user.id)
             async with aiosqlite.connect(self.db_path) as db:
                 await db.execute('DELETE FROM staff WHERE id = ?', (user.id,))
                 await db.commit()
-                sonu2 = discord.Embed(title="<:tick:1327829594954530896> Success", description=f"Removed {user} from the staff list.", color=0x000000)
+                sonu2 = discord.Embed(title=f"{emojis.TICK} Success", description=f"Removed {user} from the staff list.", color=0x000000)
             await ctx.reply(embed=sonu2, mention_author=False)
 
     @commands.command(name="staff_list", aliases=["stafflist", "liststaff", "staffs"], help="Lists all staff members.")
@@ -219,7 +224,7 @@ class Owner(commands.Cog):
                 member = await self.client.fetch_user(staff_id)
                 member_list.append(f"{member.name}#{member.discriminator} (ID: {staff_id})")
             staff_display = "\n".join(member_list)
-            sonu = discord.Embed(title="<:tick:1327829594954530896> Quantum Staffs", description=f"\n{staff_display}", color=0x000000)
+            sonu = discord.Embed(title=f"{emojis.TICK} Quantum Staffs", description=f"\n{staff_display}", color=0x000000)
             await ctx.send(embed=sonu)
 
     @commands.command(name="slist")
@@ -351,7 +356,7 @@ class Owner(commands.Cog):
         """ DM the user of your choice """
         try:
             await user.send(message)
-            await ctx.send(f"<:tick:1327829594954530896> | Successfully Sent a DM to **{user}**")
+            await ctx.send(f"{emojis.TICK} | Successfully Sent a DM to **{user}**")
         except discord.Forbidden:
             await ctx.send("This user might be having DMs blocked or it's a bot account...")           
 
@@ -371,9 +376,9 @@ class Owner(commands.Cog):
         try:
             await ctx.guild.me.edit(nick=name)
             if name:
-                await ctx.send(f"<:tick:1327829594954530896> | Successfully changed nickname to **{name}**")
+                await ctx.send(f"{emojis.TICK} | Successfully changed nickname to **{name}**")
             else:
-                await ctx.send("<:tick:1327829594954530896> | Successfully removed nickname")
+                await ctx.send(f"{emojis.TICK} | Successfully removed nickname")
         except Exception as err:
             await ctx.send(err) 
 
@@ -388,14 +393,14 @@ class Owner(commands.Cog):
                 await member.ban(reason=reason)
                 embed = discord.Embed(
                     title="Successfully Banned",
-                    description=f"<:tick:1327829594954530896> | **{member.name}** has been successfully banned from {ctx.guild.name} by the Bot Owner.",
+                    description=f"{emojis.TICK} | **{member.name}** has been successfully banned from {ctx.guild.name} by the Bot Owner.",
                     color=0x000000)
                 await ctx.reply(embed=embed, mention_author=False, delete_after=3)
                 await ctx.message.delete()
             except discord.Forbidden:
                 embed = discord.Embed(
                     title="Error!",
-                    description=f"<:icons_warning:1327829522573430864> I do not have permission to ban **{member.name}** in this guild.",
+                    description=f"{emojis.ICONS_WARNING} I do not have permission to ban **{member.name}** in this guild.",
                     color=0x000000
                 )
                 await ctx.reply(embed=embed, mention_author=False, delete_after=5)
@@ -403,7 +408,7 @@ class Owner(commands.Cog):
             except discord.HTTPException:
                 embed = discord.Embed(
                     title="Error!",
-                    description=f"<:icons_warning:1327829522573430864> An error occurred while banning **{member.name}**.",
+                    description=f"{emojis.ICONS_WARNING} An error occurred while banning **{member.name}**.",
                     color=0x000000
                 )
                 await ctx.reply(embed=embed, mention_author=False, delete_after=5)
@@ -421,21 +426,21 @@ class Owner(commands.Cog):
                 await ctx.guild.unban(user, reason=reason)
                 embed = discord.Embed(
                     title="Successfully Unbanned",
-                    description=f"<:tick:1327829594954530896> | **{user.name}** has been successfully unbanned from {ctx.guild.name} by the Bot Owner.",
+                    description=f"{emojis.TICK} | **{user.name}** has been successfully unbanned from {ctx.guild.name} by the Bot Owner.",
                     color=0x000000
                 )
                 await ctx.reply(embed=embed, mention_author=False)
             except discord.Forbidden:
                 embed = discord.Embed(
                     title="Error!",
-                    description=f"<:icons_warning:1327829522573430864> I do not have permission to unban **{user.name}** in this guild.",
+                    description=f"{emojis.ICONS_WARNING} I do not have permission to unban **{user.name}** in this guild.",
                     color=0x000000
                 )
                 await ctx.reply(embed=embed, mention_author=False)
             except discord.HTTPException:
                 embed = discord.Embed(
                     title="Error!",
-                    description=f"<:icons_warning:1327829522573430864> An error occurred while unbanning **{user.name}**.",
+                    description=f"{emojis.ICONS_WARNING} An error occurred while unbanning **{user.name}**.",
                     color=0x000000
                 )
                 await ctx.reply(embed=embed, mention_author=False)
@@ -721,7 +726,7 @@ class Badges(commands.Cog):
     @commands.cooldown(1, 3, commands.BucketType.user)
     async def badges(self, ctx, member: discord.Member = None):
 
-        processing_message = await ctx.send("<a:Loading:1328740531907461233> Loading your profile...")
+        processing_message = await ctx.send(f"{emojis.LOADING} Loading your profile...")
 
         member = member or ctx.author
         user_id = member.id

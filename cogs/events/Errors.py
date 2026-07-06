@@ -1,10 +1,13 @@
 import discord
 import json
 import aiosqlite
+import logging
 from discord.ext import commands
 from utils.config import serverLink
 from core import axon, Cog, Context
 from utils.Tools import get_ignore_data
+
+log = logging.getLogger(__name__)
 
 class Errors(Cog):
   def __init__(self, client: axon):
@@ -25,6 +28,9 @@ class Errors(Cog):
       return
 
     if isinstance(error, commands.CheckFailure):
+      if ctx.guild is None:
+        return
+
       data = await get_ignore_data(ctx.guild.id)
       ch = data["channel"]
       iuser = data["user"]
@@ -101,5 +107,6 @@ class Errors(Cog):
       return
 
     if isinstance(error, commands.CommandInvokeError):
+      log.exception("Command %s failed", ctx.command.qualified_name if ctx.command else "unknown", exc_info=error.original)
       return
 

@@ -1,12 +1,11 @@
 from __future__ import annotations
-import os 
 import discord
 from utils.config import BotName
 try:
     from discord.ext import menus
     from discord.ext import commands
 except ModuleNotFoundError:
-    os.system("pip install git+https://github.com/Rapptz/discord-ext-menus")
+    raise RuntimeError("discord-ext-menus is required. Run `pip install -r requirements.txt`.")
 
 from .paginator import Paginator as EmbedPaginator
 from discord.ext.commands import Context, Paginator as CmdPaginator
